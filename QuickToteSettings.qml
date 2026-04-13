@@ -189,7 +189,7 @@ PluginSettings {
                         description: ""
                         defaultValue: 4
                         minimum: 1
-                        maximum: 8
+                        maximum: 10
                         unit: "files"
                     }
                 }

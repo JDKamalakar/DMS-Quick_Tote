@@ -14,19 +14,72 @@ PluginComponent {
     popoutWidth: 340
     popoutHeight: 0
 
-    // Settings & State
-    property string downloadsPath: pluginData.downloadsPath || "~/Downloads"
-    property string screenshotsPath: pluginData.screenshotsPath || "~/Pictures/Screenshots"
-    property int maxDownloads: pluginData.maxDownloads || 6
-    property int maxScreenshots: pluginData.maxScreenshots || 4
+    // Settings & State (Reactive bindings)
+    property string downloadsPath: (pluginData && pluginData.downloadsPath) ? pluginData.downloadsPath : "~/Downloads"
+    property string screenshotsPath: (pluginData && pluginData.screenshotsPath) ? pluginData.screenshotsPath : "~/Pictures/Screenshots"
+    property int maxDownloads: (pluginData && pluginData.maxDownloads) ? pluginData.maxDownloads : 6
+    property int maxScreenshots: (pluginData && pluginData.maxScreenshots) ? pluginData.maxScreenshots : 4
     
-    // UI-State Pinned Files (Synced with pluginData via ListModel)
     property var pinnedFiles: (pluginData && pluginData.pinnedFiles) ? pluginData.pinnedFiles : []
     property var recentDownloads: []
     property var recentScreenshots: []
     
     property bool loading: dlScanner.running || ssScanner.running
-    property string statusLabel: loading ? "Updating..." : (recentDownloads.length + recentScreenshots.length + pinnedFiles.length) + " items ready"
+    property string statusLabel: loading ? "Updating..." : (recentDownloads.length + recentScreenshots.length + pinnedModel.count) + " items ready"
+
+    // --- Persistence & Reactivity Sync ---
+    onPluginDataChanged: {
+        if (!pluginData) return;
+        
+        root.downloadsPath = pluginData.downloadsPath || "~/Downloads";
+        root.screenshotsPath = pluginData.screenshotsPath || "~/Pictures/Screenshots";
+        root.maxDownloads = pluginData.maxDownloads || 6;
+        root.maxScreenshots = pluginData.maxScreenshots || 4;
+        
+        if (pluginData.pinnedFiles !== undefined) {
+            if (pluginData.pinnedFiles.length !== pinnedModel.count) {
+                root.syncModel();
+            }
+            root.pinnedFiles = pluginData.pinnedFiles;
+        }
+        
+        root.refresh();
+    }
+
+    onDownloadsPathChanged: refresh()
+    onScreenshotsPathChanged: refresh()
+    onMaxDownloadsChanged: refresh()
+    onMaxScreenshotsChanged: refresh()
+
+    function refresh() {
+        dlScanner.running = false;
+        ssScanner.running = false;
+        dlScanner.running = true;
+        ssScanner.running = true;
+    }
+
+    Timer {
+        interval: 60000; running: true; repeat: true; triggeredOnStart: true
+        onTriggered: root.refresh()
+    }
+
+    // --- Adaptive "Smart Sort" Screenshot Logic ---
+    readonly property int ssMaxAreaWidth: 316
+    // Logic: 1-2 items = 1 row. 3-10 items = 2 rows, evenly distributed.
+    readonly property int ssCols: {
+        let count = recentScreenshots.length;
+        if (count <= 2) return count;
+        return Math.ceil(count / 2); // 3->2, 5->3, 10->5
+    }
+
+    property int ssWidth: {
+        let count = recentScreenshots.length;
+        if (count === 0) return 0;
+        let spacing = (ssCols - 1) * Theme.spacingS;
+        return (ssMaxAreaWidth - spacing) / ssCols;
+    }
+    // Large items for 1-2 images, more compact for grids
+    property int ssHeight: recentScreenshots.length <= 2 ? Math.min(160, ssWidth * 0.625) : 72
 
     // --- ListModel Management ---
     ListModel { id: pinnedModel }
@@ -39,31 +92,6 @@ PluginComponent {
         for (let path of current) {
             pinnedModel.append({ "path": path });
         }
-    }
-
-    onPluginDataChanged: {
-        if (pluginData && pluginData.pinnedFiles !== undefined) {
-            // Only full sync if lengths changed or model is empty (to preserve transitions for single updates)
-            if (pluginData.pinnedFiles.length !== pinnedModel.count) {
-                root.syncModel();
-            }
-            root.pinnedFiles = pluginData.pinnedFiles;
-        }
-    }
-
-    onDownloadsPathChanged: refresh()
-    onScreenshotsPathChanged: refresh()
-    onMaxDownloadsChanged: refresh()
-    onMaxScreenshotsChanged: refresh()
-
-    function refresh() {
-        dlScanner.running = true;
-        ssScanner.running = true;
-    }
-
-    Timer {
-        interval: 60000; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: root.refresh()
     }
 
     // --- Logic ---
@@ -113,11 +141,9 @@ PluginComponent {
         let index = current.indexOf(path);
         
         if (index === -1) {
-            // Pinning: Slide In
             current.push(path);
             pinnedModel.append({ "path": path });
         } else {
-            // Unpinning: Slide Out
             current.splice(index, 1);
             for (let i = 0; i < pinnedModel.count; i++) {
                 if (pinnedModel.get(i).path === path) {
@@ -210,7 +236,7 @@ PluginComponent {
                     }
                 }
 
-                // --- Pinned Files Section (Reliable Transitions) ---
+                // --- Pinned Files Section ---
                 Column {
                     width: parent.width; spacing: Theme.spacingS
                     opacity: pinnedModel.count > 0 ? 1 : 0
@@ -234,8 +260,6 @@ PluginComponent {
                             id: pinnedGv; anchors.fill: parent; anchors.margins: 12
                             cellWidth: width / 2; cellHeight: 52; interactive: false
                             model: pinnedModel
-                            
-                            // PREMIUM SLIDE-FROM-BOTTOM TRANSITIONS
                             add: Transition { 
                                 NumberAnimation { property: "y"; from: 52; duration: 350; easing.type: Easing.OutBack } 
                                 NumberAnimation { properties: "opacity,scale"; from: 0; to: 1; duration: 250; easing.type: Easing.OutCubic } 
@@ -250,9 +274,7 @@ PluginComponent {
                                 width: pinnedGv.cellWidth; height: 50
                                 property string filePath: model.path
                                 property bool hovered: maPin.containsMouse || pinBtnMaGrid.containsMouse
-                                
                                 MouseArea { id: maPin; anchors.fill: parent; hoverEnabled: true; onClicked: root.openFile(filePath); onPressed: (m) => pRipG.trigger(m.x, m.y) }
-                                
                                 Rectangle {
                                     anchors.fill: parent; anchors.margins: 4; radius: Theme.cornerRadius
                                     color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, hovered ? 0.15 : 0.08)
@@ -262,7 +284,6 @@ PluginComponent {
                                     Rectangle { anchors.fill: parent; radius: parent.radius; color: "white"; opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
                                 }
                                 DankRipple { id: pRipG; anchors.fill: parent; anchors.margins: 4; cornerRadius: Theme.cornerRadius; rippleColor: Theme.secondary }
-                                
                                 RowLayout {
                                     anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 4; spacing: 8
                                     Rectangle {
@@ -291,7 +312,7 @@ PluginComponent {
                     }
                 }
 
-                // --- Screen Captures Section ---
+                // --- Screen Captures Section (Smart Sort) ---
                 Column {
                     width: parent.width; spacing: Theme.spacingS
                     opacity: root.recentScreenshots.length > 0 ? 1 : 0
@@ -306,19 +327,21 @@ PluginComponent {
                         StyledText { text: "Screen captures"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
                     }
                     StyledRect {
-                        id: ssCont; width: parent.width; height: ssGrid.implicitHeight + 24
+                        id: ssCont; width: parent.width; height: ssGrid.implicitHeight
                         radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.5)
                         border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
-                        
+                        Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+
                         Grid {
-                            id: ssGrid; columns: 4; spacing: Theme.spacingM
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            topPadding: 12; bottomPadding: 12
-                            
+                            id: ssGrid; anchors.horizontalCenter: parent.horizontalCenter
+                            columns: root.ssCols
+                            spacing: Theme.spacingS; topPadding: 12; bottomPadding: 12
                             Repeater {
                                 model: root.recentScreenshots
                                 Item {
-                                    id: ssDelegate; width: 64; height: 64
+                                    id: ssDelegate; width: root.ssWidth; height: root.ssHeight
+                                    Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                                    Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                     property bool hovered: maSS.containsMouse || ssPinMa.containsMouse
                                     MouseArea { id: maSS; anchors.fill: parent; hoverEnabled: true; onClicked: root.openFile(modelData.path); onPressed: (m) => ssRip.trigger(m.x, m.y) }
                                     Rectangle {
@@ -333,7 +356,6 @@ PluginComponent {
                                         width: 32; height: 32; anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: -8; anchors.rightMargin: -8
                                         scale: (ssDelegate.hovered || root.isPinned(modelData.path)) ? 1.0 : 0.0
                                         Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
-                                        
                                         Rectangle { anchors.centerIn: parent; width: 24; height: 24; radius: 12; color: root.isPinned(modelData.path) ? Theme.primary : Theme.surfaceContainer; border.width: 1; border.color: Theme.outline
                                             DankIcon { name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? "white" : Theme.surfaceText; anchors.centerIn: parent; rotation: root.isPinned(modelData.path) ? 0 : 45; Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } } }
                                         }
@@ -363,11 +385,9 @@ PluginComponent {
                         id: dlCont; width: parent.width; height: dlLv.contentHeight + 24
                         radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.5)
                         border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
-                        
                         ListView {
                             id: dlLv; anchors.fill: parent; anchors.margins: 12; spacing: 6
                             model: root.recentDownloads; interactive: false
-                            
                             add: Transition { 
                                 NumberAnimation { property: "y"; from: 42; duration: 350; easing.type: Easing.OutBack } 
                                 NumberAnimation { properties: "opacity"; from: 0; to: 1; duration: 250 } 
@@ -377,12 +397,10 @@ PluginComponent {
                                 NumberAnimation { properties: "opacity,scale"; to: 0; duration: 200 } 
                             }
                             displaced: Transition { NumberAnimation { properties: "y"; duration: 400; easing.type: Easing.OutBack } }
-
                             delegate: Item {
                                 width: dlLv.width; height: 42
                                 property bool hovered: maDL.containsMouse || dlPinMa.containsMouse
                                 MouseArea { id: maDL; anchors.fill: parent; hoverEnabled: true; onClicked: root.openFile(modelData.path); onPressed: (m) => dlRip.trigger(m.x, m.y) }
-                                
                                 Rectangle {
                                     anchors.fill: parent; radius: Theme.cornerRadius
                                     color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.15 : 0.08)
@@ -392,7 +410,6 @@ PluginComponent {
                                     Rectangle { anchors.fill: parent; radius: parent.radius; color: "white"; opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
                                 }
                                 DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: Theme.cornerRadius; rippleColor: Theme.primary }
-                                
                                 RowLayout {
                                     anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 0; spacing: Theme.spacingS
                                     Rectangle {
