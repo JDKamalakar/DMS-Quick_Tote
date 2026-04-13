@@ -12,6 +12,7 @@ PluginSettings {
         width: parent.width
         spacing: Theme.spacingL
 
+        // --- Header Section ---
         Column {
             width: parent.width
             spacing: Theme.spacingXS
@@ -26,25 +27,34 @@ PluginSettings {
 
             StyledText {
                 width: parent.width
-                text: "Quick access to your recent files and screenshots. Inspired by ChromeOS Tote."
+                text: "ChromeOS-inspired 'Tote' for quick access to your recent downloads and screen captures."
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceVariantText
                 wrapMode: Text.WordWrap
             }
         }
 
-        // --- File Paths ---
+        // --- Paths & Sources ---
         Rectangle {
             width: parent.width
-            height: pathsGroup.implicitHeight + Theme.spacingM * 2
+            height: sourcesGroup.implicitHeight + Theme.spacingM * 2
             color: Theme.surfaceContainer
             radius: Theme.cornerRadius
             border.color: Theme.outline
             border.width: 1
             opacity: 0.8
 
+            function loadValue() {
+                for (var i = 0; i < sourcesGroup.children.length; i++) {
+                    var row = sourcesGroup.children[i];
+                    for (var j = 0; j < row.children.length; j++) {
+                        if (row.children[j].loadValue) row.children[j].loadValue();
+                    }
+                }
+            }
+
             Column {
-                id: pathsGroup
+                id: sourcesGroup
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 spacing: Theme.spacingM
@@ -60,19 +70,8 @@ PluginSettings {
                         Column {
                             width: parent.width - 22 - Theme.spacingM
                             spacing: Theme.spacingXXS
-                            StyledText {
-                                text: "Downloads Path"
-                                font.pixelSize: Theme.fontSizeMedium
-                                font.weight: Font.Medium
-                                color: Theme.surfaceText
-                            }
-                            StyledText {
-                                text: "Folder to watch for recent downloads."
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceVariantText
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                            }
+                            StyledText { text: "Downloads Path"; font.weight: Font.Medium; color: Theme.surfaceText }
+                            StyledText { text: "Directory to monitor for recent files."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
                         }
                     }
 
@@ -97,19 +96,8 @@ PluginSettings {
                         Column {
                             width: parent.width - 22 - Theme.spacingM
                             spacing: Theme.spacingXXS
-                            StyledText {
-                                text: "Screenshots Path"
-                                font.pixelSize: Theme.fontSizeMedium
-                                font.weight: Font.Medium
-                                color: Theme.surfaceText
-                            }
-                            StyledText {
-                                text: "Folder where screenshots are saved."
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceVariantText
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                            }
+                            StyledText { text: "Screenshots Path"; font.weight: Font.Medium; color: Theme.surfaceText }
+                            StyledText { text: "Directory where screen captures are saved."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
                         }
                     }
 
@@ -125,18 +113,27 @@ PluginSettings {
             }
         }
 
-        // --- View Options ---
+        // --- Performance & Limits ---
         Rectangle {
             width: parent.width
-            height: viewGroup.implicitHeight + Theme.spacingM * 2
+            height: limitsGroup.implicitHeight + Theme.spacingM * 2
             color: Theme.surfaceContainer
             radius: Theme.cornerRadius
             border.color: Theme.outline
             border.width: 1
             opacity: 0.8
 
+            function loadValue() {
+                for (var i = 0; i < limitsGroup.children.length; i++) {
+                    var row = limitsGroup.children[i];
+                    for (var j = 0; j < row.children.length; j++) {
+                        if (row.children[j].loadValue) row.children[j].loadValue();
+                    }
+                }
+            }
+
             Column {
-                id: viewGroup
+                id: limitsGroup
                 anchors.fill: parent
                 anchors.margins: Theme.spacingM
                 spacing: Theme.spacingM
@@ -148,23 +145,12 @@ PluginSettings {
                     Row {
                         width: parent.width
                         spacing: Theme.spacingM
-                        DankIcon { name: "format_list_numbered"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
+                        DankIcon { name: "list"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                         Column {
                             width: parent.width - 22 - Theme.spacingM
                             spacing: Theme.spacingXXS
-                            StyledText {
-                                text: "Max Downloads"
-                                font.pixelSize: Theme.fontSizeMedium
-                                font.weight: Font.Medium
-                                color: Theme.surfaceText
-                            }
-                            StyledText {
-                                text: "Max number of recent downloads to show."
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceVariantText
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                            }
+                            StyledText { text: "Max Downloads"; font.weight: Font.Medium; color: Theme.surfaceText }
+                            StyledText { text: "Number of recent downloads to display."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
                         }
                     }
 
@@ -177,7 +163,6 @@ PluginSettings {
                         minimum: 1
                         maximum: 20
                         unit: "files"
-                        leftIcon: ""
                     }
                 }
 
@@ -188,23 +173,12 @@ PluginSettings {
                     Row {
                         width: parent.width
                         spacing: Theme.spacingM
-                        DankIcon { name: "grid_view"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
+                        DankIcon { name: "photo_library"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                         Column {
                             width: parent.width - 22 - Theme.spacingM
                             spacing: Theme.spacingXXS
-                            StyledText {
-                                text: "Max Screenshots"
-                                font.pixelSize: Theme.fontSizeMedium
-                                font.weight: Font.Medium
-                                color: Theme.surfaceText
-                            }
-                            StyledText {
-                                text: "Max number of screenshot previews to show."
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceVariantText
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                            }
+                            StyledText { text: "Max Screenshots"; font.weight: Font.Bold; color: Theme.surfaceText }
+                            StyledText { text: "Number of screen captures to show preview for."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
                         }
                     }
 
@@ -213,11 +187,10 @@ PluginSettings {
                         settingKey: "maxScreenshots"
                         label: ""
                         description: ""
-                        defaultValue: 3
+                        defaultValue: 4
                         minimum: 1
                         maximum: 8
                         unit: "files"
-                        leftIcon: ""
                     }
                 }
             }
