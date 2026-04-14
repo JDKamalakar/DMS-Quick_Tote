@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import qs.Common
 import qs.Widgets
@@ -12,28 +13,6 @@ PluginSettings {
         width: parent.width
         spacing: Theme.spacingL
 
-        // --- Header Section ---
-        Column {
-            width: parent.width
-            spacing: Theme.spacingXS
-            
-            StyledText {
-                width: parent.width
-                text: "Quick Tote"
-                font.pixelSize: Theme.fontSizeLarge
-                font.weight: Font.Bold
-                color: Theme.surfaceText
-            }
-
-            StyledText {
-                width: parent.width
-                text: "ChromeOS-inspired 'Tote' for quick access to your recent downloads and screen captures."
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.surfaceVariantText
-                wrapMode: Text.WordWrap
-            }
-        }
-
         // --- Paths & Sources ---
         Rectangle {
             width: parent.width
@@ -45,12 +24,8 @@ PluginSettings {
             opacity: 0.8
 
             function loadValue() {
-                for (var i = 0; i < sourcesGroup.children.length; i++) {
-                    var row = sourcesGroup.children[i];
-                    for (var j = 0; j < row.children.length; j++) {
-                        if (row.children[j].loadValue) row.children[j].loadValue();
-                    }
-                }
+                dlPathField.loadValue();
+                ssPathField.loadValue();
             }
 
             Column {
@@ -75,13 +50,20 @@ PluginSettings {
                         }
                     }
 
-                    StringSetting {
+                    DankTextField {
+                        id: dlPathField
+                        property string settingKey: "downloadsPath"
+                        property string defaultValue: "~/Downloads"
                         width: parent.width
-                        settingKey: "downloadsPath"
-                        label: ""
-                        description: ""
-                        placeholder: "~/Downloads"
-                        defaultValue: "~/Downloads"
+                        placeholderText: defaultValue
+                        
+                        function loadValue() {
+                            text = root.loadValue ? root.loadValue(settingKey, defaultValue) : defaultValue;
+                        }
+                        Component.onCompleted: loadValue()
+                        onEditingFinished: {
+                            root.saveValue(settingKey, text);
+                        }
                     }
                 }
 
@@ -101,13 +83,20 @@ PluginSettings {
                         }
                     }
 
-                    StringSetting {
+                    DankTextField {
+                        id: ssPathField
+                        property string settingKey: "screenshotsPath"
+                        property string defaultValue: "~/Pictures/Screenshots"
                         width: parent.width
-                        settingKey: "screenshotsPath"
-                        label: ""
-                        description: ""
-                        placeholder: "~/Pictures/Screenshots"
-                        defaultValue: "~/Pictures/Screenshots"
+                        placeholderText: defaultValue
+
+                        function loadValue() {
+                            text = root.loadValue ? root.loadValue(settingKey, defaultValue) : defaultValue;
+                        }
+                        Component.onCompleted: loadValue()
+                        onEditingFinished: {
+                            root.saveValue(settingKey, text);
+                        }
                     }
                 }
             }
@@ -124,12 +113,8 @@ PluginSettings {
             opacity: 0.8
 
             function loadValue() {
-                for (var i = 0; i < limitsGroup.children.length; i++) {
-                    var row = limitsGroup.children[i];
-                    for (var j = 0; j < row.children.length; j++) {
-                        if (row.children[j].loadValue) row.children[j].loadValue();
-                    }
-                }
+                dlLimitSlider.loadValue();
+                ssLimitSlider.loadValue();
             }
 
             Column {
@@ -143,26 +128,60 @@ PluginSettings {
                     spacing: Theme.spacingS
 
                     Row {
+                        id: dlLabelRow
                         width: parent.width
                         spacing: Theme.spacingM
                         DankIcon { name: "list"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                         Column {
-                            width: parent.width - 22 - Theme.spacingM
+                            width: parent.width - 22 - 22 - Theme.spacingM * 2
                             spacing: Theme.spacingXXS
-                            StyledText { text: "Max Downloads"; font.weight: Font.Medium; color: Theme.surfaceText }
+                            StyledText { text: "Max Downloads"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
                             StyledText { text: "Number of recent downloads to display."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                        }
+                        DankIcon {
+                            name: "restart_alt"
+                            size: 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            opacity: dlLimitSlider.value !== dlLimitSlider.defaultValue ? 0.8 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    dlResetAnim.restart();
+                                    root.saveValue(dlLimitSlider.settingKey, dlLimitSlider.defaultValue);
+                                }
+                            }
                         }
                     }
 
-                    SliderSetting {
+                    NumberAnimation {
+                        id: dlResetAnim
+                        target: dlLimitSlider
+                        property: "value"
+                        to: dlLimitSlider.defaultValue
+                        duration: 300
+                        easing.type: Easing.OutCubic
+                    }
+
+                    DankSlider {
+                        id: dlLimitSlider
+                        property int defaultValue: 6
+                        property string settingKey: "maxDownloads"
                         width: parent.width
-                        settingKey: "maxDownloads"
-                        label: ""
-                        description: ""
-                        defaultValue: 6
                         minimum: 1
                         maximum: 20
-                        unit: "files"
+                        step: 1
+                        unit: " files"
+                        
+                        function loadValue() {
+                            value = root.loadValue ? root.loadValue(settingKey, defaultValue) : defaultValue;
+                        }
+                        Component.onCompleted: loadValue()
+                        onSliderValueChanged: newValue => {
+                            value = newValue;
+                            root.saveValue(settingKey, newValue);
+                        }
                     }
                 }
 
@@ -171,26 +190,60 @@ PluginSettings {
                     spacing: Theme.spacingS
 
                     Row {
+                        id: ssLabelRow
                         width: parent.width
                         spacing: Theme.spacingM
                         DankIcon { name: "photo_library"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
                         Column {
-                            width: parent.width - 22 - Theme.spacingM
+                            width: parent.width - 22 - 22 - Theme.spacingM * 2
                             spacing: Theme.spacingXXS
-                            StyledText { text: "Max Screenshots"; font.weight: Font.Bold; color: Theme.surfaceText }
+                            StyledText { text: "Max Screenshots"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
                             StyledText { text: "Number of screen captures to show preview for."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                        }
+                        DankIcon {
+                            name: "restart_alt"
+                            size: 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            opacity: ssLimitSlider.value !== ssLimitSlider.defaultValue ? 0.8 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    ssResetAnim.restart();
+                                    root.saveValue(ssLimitSlider.settingKey, ssLimitSlider.defaultValue);
+                                }
+                            }
                         }
                     }
 
-                    SliderSetting {
+                    NumberAnimation {
+                        id: ssResetAnim
+                        target: ssLimitSlider
+                        property: "value"
+                        to: ssLimitSlider.defaultValue
+                        duration: 300
+                        easing.type: Easing.OutCubic
+                    }
+
+                    DankSlider {
+                        id: ssLimitSlider
+                        property int defaultValue: 6
+                        property string settingKey: "maxScreenshots"
                         width: parent.width
-                        settingKey: "maxScreenshots"
-                        label: ""
-                        description: ""
-                        defaultValue: 4
                         minimum: 1
                         maximum: 10
-                        unit: "files"
+                        step: 1
+                        unit: " files"
+
+                        function loadValue() {
+                            value = root.loadValue ? root.loadValue(settingKey, defaultValue) : defaultValue;
+                        }
+                        Component.onCompleted: loadValue()
+                        onSliderValueChanged: newValue => {
+                            value = newValue;
+                            root.saveValue(settingKey, newValue);
+                        }
                     }
                 }
             }
