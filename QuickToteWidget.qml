@@ -9,40 +9,65 @@ import Qt5Compat.GraphicalEffects
 
 PluginComponent {
     id: root
-    layerNamespacePlugin: "quickTote"
     
     popoutWidth: 340
     popoutHeight: 0
 
-    // Settings & State (Reactive bindings)
+    // --- Settings (Built-in persistence is fine for these) ---
     property string downloadsPath: (pluginData && pluginData.downloadsPath) ? pluginData.downloadsPath : "~/Downloads"
     property string screenshotsPath: (pluginData && pluginData.screenshotsPath) ? pluginData.screenshotsPath : "~/Pictures/Screenshots"
     property int maxDownloads: (pluginData && pluginData.maxDownloads) ? pluginData.maxDownloads : 6
     property int maxScreenshots: (pluginData && pluginData.maxScreenshots) ? pluginData.maxScreenshots : 4
     
-    property var pinnedFiles: (pluginData && pluginData.pinnedFiles) ? pluginData.pinnedFiles : []
+    // --- State Management ---
+    property var pinnedFiles: []
     property var recentDownloads: []
     property var recentScreenshots: []
     
-    property bool loading: dlScanner.running || ssScanner.running
+    property bool loading: (dlScanner && dlScanner.running) || (ssScanner && ssScanner.running)
     property string statusLabel: loading ? "Updating..." : (recentDownloads.length + recentScreenshots.length + pinnedModel.count) + " items ready"
 
-    // --- Persistence & Reactivity Sync ---
+    // --- Persistence: Manual JSON Store ---
+    // This bypasses the shell's volatile pluginData for pins, ensuring they are truly permanent.
+    
+    property string pinsFile: "~/.config/quickTote_pins.json"
+
+    function savePins() {
+        let jsonStr = JSON.stringify(root.pinnedFiles);
+        // Ensure the directory exists before writing to prevent failure
+        pinSaver.command = ["bash", "-c", `f="${root.pinsFile}"; f=\${f/#\\~/$HOME}; mkdir -p "$(dirname "$f")"; echo '${jsonStr}' > "$f"`];
+        pinSaver.running = true;
+    }
+
+    Process {
+        id: pinSaver
+        running: false
+    }
+
+    Process {
+        id: pinLoader
+        running: false
+        command: ["bash", "-c", `f="${root.pinsFile}"; f=\${f/#\\~/$HOME}; [ -f "$f" ] && cat "$f" || echo '[]'`]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let data = JSON.parse(text.trim());
+                    if (Array.isArray(data)) {
+                        root.pinnedFiles = data;
+                        root.syncModel();
+                    }
+                } catch(e) { console.log("QuickTote: No pins found yet or parse error"); }
+            }
+        }
+    }
+
+    // --- Reactivity ---
     onPluginDataChanged: {
         if (!pluginData) return;
-        
         root.downloadsPath = pluginData.downloadsPath || "~/Downloads";
         root.screenshotsPath = pluginData.screenshotsPath || "~/Pictures/Screenshots";
         root.maxDownloads = pluginData.maxDownloads || 6;
         root.maxScreenshots = pluginData.maxScreenshots || 4;
-        
-        if (pluginData.pinnedFiles !== undefined) {
-            if (pluginData.pinnedFiles.length !== pinnedModel.count) {
-                root.syncModel();
-            }
-            root.pinnedFiles = pluginData.pinnedFiles;
-        }
-        
         root.refresh();
     }
 
@@ -52,10 +77,10 @@ PluginComponent {
     onMaxScreenshotsChanged: refresh()
 
     function refresh() {
-        dlScanner.running = false;
-        ssScanner.running = false;
-        dlScanner.running = true;
-        ssScanner.running = true;
+        if (dlScanner) dlScanner.running = false;
+        if (ssScanner) ssScanner.running = false;
+        if (dlScanner) dlScanner.running = true;
+        if (ssScanner) ssScanner.running = true;
     }
 
     Timer {
@@ -65,11 +90,10 @@ PluginComponent {
 
     // --- Adaptive "Smart Sort" Screenshot Logic ---
     readonly property int ssMaxAreaWidth: 316
-    // Logic: 1-2 items = 1 row. 3-10 items = 2 rows, evenly distributed.
     readonly property int ssCols: {
         let count = recentScreenshots.length;
         if (count <= 2) return count;
-        return Math.ceil(count / 2); // 3->2, 5->3, 10->5
+        return Math.ceil(count / 2);
     }
 
     property int ssWidth: {
@@ -78,17 +102,20 @@ PluginComponent {
         let spacing = (ssCols - 1) * Theme.spacingS;
         return (ssMaxAreaWidth - spacing) / ssCols;
     }
-    // Large items for 1-2 images, more compact for grids
     property int ssHeight: recentScreenshots.length <= 2 ? Math.min(160, ssWidth * 0.625) : 72
 
     // --- ListModel Management ---
     ListModel { id: pinnedModel }
 
-    Component.onCompleted: root.syncModel()
+    Component.onCompleted: {
+        pinLoader.running = true; // Hard load pins from our custom disk file
+        root.refresh();
+    }
     
     function syncModel() {
         pinnedModel.clear();
         let current = root.pinnedFiles;
+        if (!current) return;
         for (let path of current) {
             pinnedModel.append({ "path": path });
         }
@@ -153,8 +180,8 @@ PluginComponent {
             }
         }
         
-        root.pinnedFiles = current;
-        pluginData.pinnedFiles = current;
+        root.pinnedFiles = [...current];
+        root.savePins(); // Manually push to disk
     }
 
     function isPinned(path) {
@@ -312,7 +339,7 @@ PluginComponent {
                     }
                 }
 
-                // --- Screen Captures Section (Smart Sort) ---
+                // --- Screen Captures Section ---
                 Column {
                     width: parent.width; spacing: Theme.spacingS
                     opacity: root.recentScreenshots.length > 0 ? 1 : 0
