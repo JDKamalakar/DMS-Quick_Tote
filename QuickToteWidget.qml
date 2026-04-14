@@ -89,20 +89,16 @@ PluginComponent {
     }
 
     // --- Adaptive "Smart Sort" Screenshot Logic ---
-    readonly property int ssMaxAreaWidth: 316
+    readonly property int ssPadding: 12
     readonly property int ssCols: {
         let count = recentScreenshots.length;
+        if (count <= 0) return 0;
         if (count <= 2) return count;
         return Math.ceil(count / 2);
     }
 
-    property int ssWidth: {
-        let count = recentScreenshots.length;
-        if (count === 0) return 0;
-        let spacing = (ssCols - 1) * Theme.spacingS;
-        return (ssMaxAreaWidth - spacing) / ssCols;
-    }
-    property int ssHeight: recentScreenshots.length <= 2 ? Math.min(160, ssWidth * 0.625) : 72
+    property int ssWidth: 0
+    property int ssHeight: 72
 
     // --- ListModel Management ---
     ListModel { id: pinnedModel }
@@ -226,13 +222,13 @@ PluginComponent {
     popoutContent: Component {
         PopoutComponent {
             id: popoutContainer
-            headerText: "Quick Tote"
-            detailsText: root.statusLabel
-            showCloseButton: true
+            headerText: ""
+            detailsText: ""
+            showCloseButton: false
             
             Column {
                 id: mainCol; width: parent.width; spacing: Theme.spacingM
-                topPadding: Theme.spacingM; bottomPadding: Theme.spacingL
+                topPadding: 0; bottomPadding: Theme.spacingL
 
                 // --- Header Card ---
                 Item {
@@ -274,6 +270,10 @@ PluginComponent {
 
                     Row {
                         id: pinnedHead; width: parent.width; spacing: Theme.spacingS
+                        Rectangle {
+                            width: 4; height: 18; radius: 2; color: Theme.secondary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                         DankIcon { name: "push_pin"; size: 16; color: Theme.secondary; anchors.verticalCenter: parent.verticalCenter }
                         StyledText { text: "Pinned files"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
                     }
@@ -348,8 +348,18 @@ PluginComponent {
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
+                    // --- Separator ---
+                    Rectangle {
+                        width: parent.width; height: 1; color: Theme.outline; opacity: 0.1
+                        visible: root.pinnedFiles.length > 0 && root.recentScreenshots.length > 0
+                    }
+
                     Row {
                         id: ssHead; width: parent.width; spacing: Theme.spacingS
+                        Rectangle {
+                            width: 4; height: 18; radius: 2; color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                         DankIcon { name: "screenshot_region"; size: 16; color: Theme.primary; anchors.verticalCenter: parent.verticalCenter }
                         StyledText { text: "Screen captures"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
                     }
@@ -360,13 +370,18 @@ PluginComponent {
                         Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
                         Grid {
-                            id: ssGrid; anchors.horizontalCenter: parent.horizontalCenter
+                            id: ssGrid; width: parent.width
                             columns: root.ssCols
-                            spacing: Theme.spacingS; topPadding: 12; bottomPadding: 12
+                            spacing: Theme.spacingS
+                            padding: root.ssPadding
+
+                            property int itemWidth: (width - (padding * 2) - (columns > 1 ? (columns - 1) * spacing : 0)) / Math.max(1, columns)
+                            property int itemHeight: root.recentScreenshots.length <= 2 ? Math.min(160, itemWidth * 0.625) : 72
+
                             Repeater {
                                 model: root.recentScreenshots
                                 Item {
-                                    id: ssDelegate; width: root.ssWidth; height: root.ssHeight
+                                    id: ssDelegate; width: ssGrid.itemWidth; height: ssGrid.itemHeight
                                     Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                     property bool hovered: maSS.containsMouse || ssPinMa.containsMouse
@@ -403,8 +418,18 @@ PluginComponent {
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
+                    // --- Separator ---
+                    Rectangle {
+                        width: parent.width; height: 1; color: Theme.outline; opacity: 0.1
+                        visible: (root.pinnedFiles.length > 0 || root.recentScreenshots.length > 0) && root.recentDownloads.length > 0
+                    }
+
                     Row {
                         id: dlHead; width: parent.width; spacing: Theme.spacingS
+                        Rectangle {
+                            width: 4; height: 18; radius: 2; color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                         DankIcon { name: "download"; size: 16; color: Theme.primary; anchors.verticalCenter: parent.verticalCenter }
                         StyledText { text: "Recent downloads"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
                     }
