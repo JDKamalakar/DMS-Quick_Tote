@@ -182,6 +182,27 @@ PluginComponent {
         root.closePopout();
     }
 
+    // --- System Drag (works from layer shell via ripdrag/xdragon) ---
+    // Qt's Drag.Automatic cannot initiate Wayland DnD from a layer shell surface.
+    // We delegate to a native CLI tool that acts as a proper wl_data_source.
+    function startSystemDrag(path) {
+        fileDragger.running = false; // Reset the process object
+        fileDragger.command = [
+            "bash", "-c",
+            "pkill -x ripdrag; pkill -x xdragon; pkill -x dragon; " +
+            "f=" + JSON.stringify(path) + "; " +
+            "if command -v ripdrag >/dev/null 2>&1; then ripdrag --and-exit --icons-only --icon-size 64 --content-width 90 --content-height 64 \"$f\"; " +
+            "elif command -v xdragon >/dev/null 2>&1; then xdragon --and-exit --small \"$f\"; " +
+            "elif command -v dragon >/dev/null 2>&1; then dragon --and-exit --small \"$f\"; fi"
+        ];
+        fileDragger.running = true;
+    }
+
+    Process {
+        id: fileDragger
+        running: false
+    }
+
     function togglePin(path) {
         let current = root.pinnedFiles ? Array.from(root.pinnedFiles) : [];
         let index = current.indexOf(path);
@@ -291,42 +312,39 @@ PluginComponent {
 
 
                 // --- Pinned Files Section ---
-                Column {
-                    width: parent.width; spacing: Theme.spacingS
+                StyledRect {
+                    id: pinnedCont
+                    width: parent.width
                     opacity: pinnedModel.count > 0 ? 1 : 0
-                    height: pinnedModel.count > 0 ? (pinnedHead.height + pinnedCont.height + Theme.spacingS + 6) : 0
+                    height: pinnedModel.count > 0 ? (pinnedContentCol.implicitHeight + Theme.spacingM * 2) : 0
                     visible: opacity > 0; clip: true
+                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.4)
+                    border.width: 1; border.color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
+                    
+                    layer.enabled: true
+                    layer.effect: DropShadow {
+                        transparentBorder: true
+                        horizontalOffset: 0; verticalOffset: 2
+                        radius: 6.0; samples: 16
+                        color: Qt.rgba(0,0,0,0.15)
+                    }
+
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
-                    Row {
-                        id: pinnedHead; width: parent.width; spacing: Theme.spacingS
-                        Rectangle {
-                            width: 4; height: 18; radius: 2; color: Theme.secondary
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        DankIcon { name: "push_pin"; size: 16; color: Theme.secondary; anchors.verticalCenter: parent.verticalCenter }
-                        StyledText { text: "Pinned files"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
-                    }
+                    Column {
+                        id: pinnedContentCol
+                        anchors.fill: parent; anchors.margins: Theme.spacingM
+                        spacing: Theme.spacingS
 
-                    StyledRect {
-                        id: pinnedCont
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 6
-                        height: (Math.ceil(pinnedModel.count / 2) * 52) + 24
-                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
-                        border.width: 1; border.color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
-                        
-                        layer.enabled: true
-                        layer.effect: DropShadow {
-                            transparentBorder: true
-                            horizontalOffset: 0; verticalOffset: 2
-                            radius: 6.0; samples: 16
-                            color: Qt.rgba(0,0,0,0.15)
+                        RowLayout {
+                            spacing: Theme.spacingXS; width: parent.width
+                            DankIcon { name: "push_pin"; size: 14; color: Theme.secondary }
+                            StyledText { text: "Pinned files"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
                         }
-                        
+
                         GridView {
-                            id: pinnedGv; anchors.fill: parent; anchors.margins: 12
+                            id: pinnedGv; width: parent.width; height: (Math.ceil(pinnedModel.count / 2) * 52)
                             cellWidth: width / 2; cellHeight: 52; interactive: false
                             model: pinnedModel
                             add: Transition { 
@@ -340,10 +358,34 @@ PluginComponent {
                             displaced: Transition { NumberAnimation { properties: "x,y"; duration: 400; easing.type: Easing.OutBack } }
 
                             delegate: Item {
+                                id: pinDelegate
                                 width: pinnedGv.cellWidth; height: 50
                                 property string filePath: model.path
                                 property bool hovered: maPin.containsMouse || pinBtnMaGrid.containsMouse
-                                MouseArea { id: maPin; anchors.fill: parent; hoverEnabled: true; onClicked: root.openFile(filePath); onPressed: (m) => pRipG.trigger(m.x, m.y) }
+                                property bool isDragging: false
+
+                                opacity: isDragging ? 0.45 : 1.0
+                                Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                                MouseArea {
+                                    id: maPin; anchors.fill: parent; hoverEnabled: true
+                                    property real pressX: 0; property real pressY: 0
+                                    property bool dragLaunched: false
+                                    onPressed: (m) => { pressX = m.x; pressY = m.y; dragLaunched = false; pRipG.trigger(m.x, m.y) }
+                                    onPositionChanged: (m) => {
+                                        if (!dragLaunched && pressed) {
+                                            let dx = m.x - pressX; let dy = m.y - pressY;
+                                            if (Math.sqrt(dx*dx + dy*dy) > 12) {
+                                                dragLaunched = true;
+                                                pinDelegate.isDragging = true;
+                                                root.startSystemDrag(filePath);
+                                                root.closePopout();
+                                            }
+                                        }
+                                    }
+                                    onReleased: { pinDelegate.isDragging = false; dragLaunched = false; }
+                                    onClicked: { if (!dragLaunched) root.openFile(filePath); }
+                                }
                                 Rectangle {
                                     anchors.fill: parent; anchors.margins: 4; radius: Theme.cornerRadius
                                     color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, hovered ? 0.15 : 0.08)
@@ -382,63 +424,76 @@ PluginComponent {
                 }
 
                 // --- Screen Captures Section ---
-                Column {
-                    width: parent.width; spacing: Theme.spacingS
+                StyledRect {
+                    id: ssCont
+                    width: parent.width
                     opacity: root.recentScreenshots.length > 0 ? 1 : 0
-                    height: root.recentScreenshots.length > 0 ? (ssHead.height + ssCont.height + Theme.spacingS * 2 + 6) : 0
+                    height: root.recentScreenshots.length > 0 ? (ssContentCol.implicitHeight + Theme.spacingM * 2) : 0
                     visible: opacity > 0; clip: true
+                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.4)
+                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                    
+                    layer.enabled: true
+                    layer.effect: DropShadow {
+                        transparentBorder: true
+                        horizontalOffset: 0; verticalOffset: 2
+                        radius: 6.0; samples: 16
+                        color: Qt.rgba(0,0,0,0.15)
+                    }
+
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
-                    // --- Separator ---
-                    Rectangle {
-                        width: parent.width; height: 1; color: Theme.outline; opacity: 0.1
-                        visible: root.pinnedFiles.length > 0 && root.recentScreenshots.length > 0
-                    }
+                    Column {
+                        id: ssContentCol
+                        anchors.fill: parent; anchors.margins: Theme.spacingM
+                        spacing: Theme.spacingS
 
-                    Row {
-                        id: ssHead; width: parent.width; spacing: Theme.spacingS
-                        Rectangle {
-                            width: 4; height: 18; radius: 2; color: Theme.primary
-                            anchors.verticalCenter: parent.verticalCenter
+                        RowLayout {
+                            spacing: Theme.spacingXS; width: parent.width
+                            DankIcon { name: "screenshot_region"; size: 14; color: Theme.primary }
+                            StyledText { text: "Screen captures"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
                         }
-                        DankIcon { name: "screenshot_region"; size: 16; color: Theme.primary; anchors.verticalCenter: parent.verticalCenter }
-                        StyledText { text: "Screen captures"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
-                    }
-                    StyledRect {
-                        id: ssCont
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 6
-                        height: ssGrid.implicitHeight
-                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
-                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                        
-                        layer.enabled: true
-                        layer.effect: DropShadow {
-                            transparentBorder: true
-                            horizontalOffset: 0; verticalOffset: 2
-                            radius: 6.0; samples: 16
-                            color: Qt.rgba(0,0,0,0.15)
-                        }
-                        Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
                         Grid {
                             id: ssGrid; width: parent.width
                             columns: root.ssCols
                             spacing: Theme.spacingS
-                            padding: root.ssPadding
 
-                            property int itemWidth: (width - (padding * 2) - (columns > 1 ? (columns - 1) * spacing : 0)) / Math.max(1, columns)
+                            property int itemWidth: (width - (columns > 1 ? (columns - 1) * spacing : 0)) / Math.max(1, columns)
                             property int itemHeight: root.recentScreenshots.length <= 2 ? Math.min(160, itemWidth * 0.625) : 72
 
                             Repeater {
                                 model: root.recentScreenshots
                                 Item {
                                     id: ssDelegate; width: ssGrid.itemWidth; height: ssGrid.itemHeight
+                                    property bool isDragging: false
                                     Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                                     property bool hovered: maSS.containsMouse || ssPinMa.containsMouse
-                                    MouseArea { id: maSS; anchors.fill: parent; hoverEnabled: true; onClicked: root.openFile(modelData.path); onPressed: (m) => ssRip.trigger(m.x, m.y) }
+
+                                    opacity: isDragging ? 0.45 : 1.0
+                                    Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                                    MouseArea {
+                                        id: maSS; anchors.fill: parent; hoverEnabled: true
+                                        property real pressX: 0; property real pressY: 0
+                                        property bool dragLaunched: false
+                                        onPressed: (m) => { pressX = m.x; pressY = m.y; dragLaunched = false; ssRip.trigger(m.x, m.y) }
+                                        onPositionChanged: (m) => {
+                                            if (!dragLaunched && pressed) {
+                                                let dx = m.x - pressX; let dy = m.y - pressY;
+                                                if (Math.sqrt(dx*dx + dy*dy) > 12) {
+                                                    dragLaunched = true;
+                                                    ssDelegate.isDragging = true;
+                                                    root.startSystemDrag(modelData.path);
+                                                    root.closePopout();
+                                                }
+                                            }
+                                        }
+                                        onReleased: { ssDelegate.isDragging = false; dragLaunched = false; }
+                                        onClicked: { if (!dragLaunched) root.openFile(modelData.path); }
+                                    }
                                     Rectangle {
                                         id: thumbCont; anchors.fill: parent; radius: 12; color: Theme.surfaceContainer
                                         layer.enabled: true
@@ -463,46 +518,39 @@ PluginComponent {
                 }
 
                 // --- Recent Downloads Section ---
-                Column {
-                    width: parent.width; spacing: Theme.spacingS
+                StyledRect {
+                    id: dlCont
+                    width: parent.width
                     opacity: root.recentDownloads.length > 0 ? 1 : 0
-                    height: root.recentDownloads.length > 0 ? (dlHead.height + dlCont.height + Theme.spacingS * 2 + 6) : 0
+                    height: root.recentDownloads.length > 0 ? (dlContentCol.implicitHeight + Theme.spacingM * 2) : 0
                     visible: opacity > 0; clip: true
+                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.4)
+                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                    
+                    layer.enabled: true
+                    layer.effect: DropShadow {
+                        transparentBorder: true
+                        horizontalOffset: 0; verticalOffset: 2
+                        radius: 6.0; samples: 16
+                        color: Qt.rgba(0,0,0,0.15)
+                    }
+
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
-                    // --- Separator ---
-                    Rectangle {
-                        width: parent.width; height: 1; color: Theme.outline; opacity: 0.1
-                        visible: (root.pinnedFiles.length > 0 || root.recentScreenshots.length > 0) && root.recentDownloads.length > 0
-                    }
+                    Column {
+                        id: dlContentCol
+                        anchors.fill: parent; anchors.margins: Theme.spacingM
+                        spacing: Theme.spacingS
 
-                    Row {
-                        id: dlHead; width: parent.width; spacing: Theme.spacingS
-                        Rectangle {
-                            width: 4; height: 18; radius: 2; color: Theme.primary
-                            anchors.verticalCenter: parent.verticalCenter
+                        RowLayout {
+                            spacing: Theme.spacingXS; width: parent.width
+                            DankIcon { name: "download"; size: 14; color: Theme.primary }
+                            StyledText { text: "Recent downloads"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
                         }
-                        DankIcon { name: "download"; size: 16; color: Theme.primary; anchors.verticalCenter: parent.verticalCenter }
-                        StyledText { text: "Recent downloads"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
-                    }
-                    StyledRect {
-                        id: dlCont
-                        anchors.left: parent.left; anchors.right: parent.right
-                        anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 6
-                        height: dlLv.contentHeight + 24
-                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
-                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                        
-                        layer.enabled: true
-                        layer.effect: DropShadow {
-                            transparentBorder: true
-                            horizontalOffset: 0; verticalOffset: 2
-                            radius: 6.0; samples: 16
-                            color: Qt.rgba(0,0,0,0.15)
-                        }
+
                         ListView {
-                            id: dlLv; anchors.fill: parent; anchors.margins: 12; spacing: 6
+                            id: dlLv; width: parent.width; height: contentHeight; spacing: 6
                             model: root.recentDownloads; interactive: false
                             add: Transition { 
                                 NumberAnimation { property: "y"; from: 42; duration: 350; easing.type: Easing.OutBack } 
@@ -514,9 +562,33 @@ PluginComponent {
                             }
                             displaced: Transition { NumberAnimation { properties: "y"; duration: 400; easing.type: Easing.OutBack } }
                             delegate: Item {
+                                id: dlDelegate
                                 width: dlLv.width; height: 42
                                 property bool hovered: maDL.containsMouse || dlPinMa.containsMouse
-                                MouseArea { id: maDL; anchors.fill: parent; hoverEnabled: true; onClicked: root.openFile(modelData.path); onPressed: (m) => dlRip.trigger(m.x, m.y) }
+                                property bool isDragging: false
+
+                                opacity: isDragging ? 0.45 : 1.0
+                                Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                                MouseArea {
+                                    id: maDL; anchors.fill: parent; hoverEnabled: true
+                                    property real pressX: 0; property real pressY: 0
+                                    property bool dragLaunched: false
+                                    onPressed: (m) => { pressX = m.x; pressY = m.y; dragLaunched = false; dlRip.trigger(m.x, m.y) }
+                                    onPositionChanged: (m) => {
+                                        if (!dragLaunched && pressed) {
+                                            let dx = m.x - pressX; let dy = m.y - pressY;
+                                            if (Math.sqrt(dx*dx + dy*dy) > 12) {
+                                                dragLaunched = true;
+                                                dlDelegate.isDragging = true;
+                                                root.startSystemDrag(modelData.path);
+                                                root.closePopout();
+                                            }
+                                        }
+                                    }
+                                    onReleased: { dlDelegate.isDragging = false; dragLaunched = false; }
+                                    onClicked: { if (!dragLaunched) root.openFile(modelData.path); }
+                                }
                                 Rectangle {
                                     anchors.fill: parent; radius: Theme.cornerRadius
                                     color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.15 : 0.08)
