@@ -1,4 +1,4 @@
-# <img width="32" height="28" alt="image" src="https://github.com/user-attachments/assets/c94111c7-f60f-48ab-ae07-a7e912a79184" /> Quick Tote
+# <img width="36" height="36" alt="image" src="https://github.com/user-attachments/assets/3300480f-3b93-42f8-a06a-dc4892912264" /> Quick Tote
 
 [![DMS Version](https://img.shields.io/badge/DMS-Compatible-purple.svg)](https://github.com/Dank-Material-Shell)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/JDKamalakar/DMS-Quick_Tote/graphs/commit-activity)
@@ -32,6 +32,21 @@ The tote organizes your workflow into logical groups for maximum efficiency:
 | **Screenshots** | High-visibility previews of your latest captures for quick sharing. |
 
 ---
+
+---
+
+### 🖥️ Main Display
+| POP-Up UI |
+| :--- |
+| <img width="320" height="640" alt="POP-Up" src="assets/POP-Up_UI.png" />|
+
+### ⚙️ Configuration
+| Settings UI |
+| :--- |
+| <img width="320" height="640" alt="Settings" src="assets/Settings.png" /> |
+
+---
+
 
 ## 🛠️ Installation
 
