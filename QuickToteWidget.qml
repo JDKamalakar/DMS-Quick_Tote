@@ -5,19 +5,20 @@ import Quickshell.Io
 import qs.Common
 import qs.Widgets
 import qs.Modules.Plugins
+import qs.Services
 import Qt5Compat.GraphicalEffects
 
 PluginComponent {
     id: root
+    pluginId: "quickTote"
     
     popoutWidth: 340
-    popoutHeight: 0
 
-    // --- Settings (Built-in persistence is fine for these) ---
-    property string downloadsPath: (pluginData && pluginData.downloadsPath) ? pluginData.downloadsPath : "~/Downloads"
-    property string screenshotsPath: (pluginData && pluginData.screenshotsPath) ? pluginData.screenshotsPath : "~/Pictures/Screenshots"
-    property int maxDownloads: (pluginData && pluginData.maxDownloads) ? pluginData.maxDownloads : 6
-    property int maxScreenshots: (pluginData && pluginData.maxScreenshots) ? pluginData.maxScreenshots : 4
+    // --- Settings (Reactive PluginData) ---
+    property string downloadsPath: pluginData.downloadsPath || "~/Downloads"
+    property string screenshotsPath: pluginData.screenshotsPath || "~/Pictures/Screenshots"
+    property int maxDownloads: pluginData.maxDownloads !== undefined ? pluginData.maxDownloads : 6
+    property int maxScreenshots: pluginData.maxScreenshots !== undefined ? pluginData.maxScreenshots : 6
     
     // --- State Management ---
     property var pinnedFiles: []
@@ -25,7 +26,7 @@ PluginComponent {
     property var recentScreenshots: []
     
     property bool loading: (dlScanner && dlScanner.running) || (ssScanner && ssScanner.running)
-    property string statusLabel: loading ? "Updating..." : (recentDownloads.length + recentScreenshots.length + pinnedModel.count) + " items ready"
+    property string statusLabel: (loading ? "Updating..." : (recentDownloads.length + recentScreenshots.length + pinnedModel.count) + " items ready")
 
     // --- Persistence: Manual JSON Store ---
     // This bypasses the shell's volatile pluginData for pins, ensuring they are truly permanent.
@@ -35,7 +36,7 @@ PluginComponent {
     function savePins() {
         let jsonStr = JSON.stringify(root.pinnedFiles);
         // Ensure the directory exists before writing to prevent failure
-        pinSaver.command = ["bash", "-c", `f="${root.pinsFile}"; f=\${f/#\\~/$HOME}; mkdir -p "$(dirname "$f")"; echo '${jsonStr}' > "$f"`];
+        pinSaver.command = ["bash", "-c", "f=\"" + root.pinsFile + "\"; f=${f/#\\~/$HOME}; mkdir -p \"$(dirname \"$f\")\"; echo '" + jsonStr + "' > \"$f\""];
         pinSaver.running = true;
     }
 
@@ -47,7 +48,7 @@ PluginComponent {
     Process {
         id: pinLoader
         running: false
-        command: ["bash", "-c", `f="${root.pinsFile}"; f=\${f/#\\~/$HOME}; [ -f "$f" ] && cat "$f" || echo '[]'`]
+        command: ["bash", "-c", "f=\"" + root.pinsFile + "\"; f=${f/#\\~/$HOME}; [ -f \"$f\" ] && cat \"$f\" || echo '[]'"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -61,15 +62,14 @@ PluginComponent {
         }
     }
 
-    // --- Reactivity ---
-    onPluginDataChanged: {
-        if (!pluginData) return;
-        root.downloadsPath = pluginData.downloadsPath || "~/Downloads";
-        root.screenshotsPath = pluginData.screenshotsPath || "~/Pictures/Screenshots";
-        root.maxDownloads = pluginData.maxDownloads || 6;
-        root.maxScreenshots = pluginData.maxScreenshots || 4;
-        root.refresh();
+    Connections {
+        target: root
+        function onPluginDataChanged() {
+            root.refresh();
+        }
     }
+
+
 
     onDownloadsPathChanged: refresh()
     onScreenshotsPathChanged: refresh()
@@ -87,6 +87,8 @@ PluginComponent {
         interval: 60000; running: true; repeat: true; triggeredOnStart: true
         onTriggered: root.refresh()
     }
+
+    // (Diagnostic mock timer removed — pipeline verified)
 
     // --- Adaptive "Smart Sort" Screenshot Logic ---
     readonly property int ssPadding: 12
@@ -120,13 +122,29 @@ PluginComponent {
     // --- Logic ---
 
     function getFileInfo(line) {
-        let parts = line.split('|');
-        if (parts.length < 2) return null;
-        let path = parts[1];
+        let path = line.trim();
+        if (!path || path.length < 3) return null;
+
+        // Strip timestamp if present
+        if (path.indexOf('|') !== -1) {
+            path = path.split('|')[1];
+        }
+        
+        try {
+            // Remove protocols
+            path = path.replace(/^[a-z]+:\/\/\/?/i, "/"); // file:///home -> /home
+            path = decodeURIComponent(path);
+        } catch(e) {}
+        
+        // Final cleanup for XML/XBEL artifacts
+        path = path.split('"')[0].split("'")[0].split("<")[0];
+
+        if (!path || path.length < 2) return null;
+
         return {
             path: path,
             name: path.split('/').pop(),
-            time: parseFloat(parts[0])
+            time: Date.now()
         };
     }
 
@@ -153,6 +171,8 @@ PluginComponent {
             }
         }
     }
+
+
 
     function openFile(path) {
         Quickshell.execDetached(["xdg-open", path]);
@@ -250,7 +270,13 @@ PluginComponent {
                         Column {
                             Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 1
                             StyledText { text: "Recent Documents"; font.bold: true; font.pixelSize: Theme.fontSizeLarge; color: Theme.surfaceText }
-                            StyledText { text: "Quick access to your workspace"; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText }
+                            StyledText { 
+                                text: root.statusLabel
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                                color: Theme.primary
+                                font.family: "Monospace"
+                                opacity: 0.8
+                            }
                         }
                         DankIcon {
                             name: "cached"; size: 18; color: Theme.primary; opacity: 0.6; visible: root.loading
@@ -258,6 +284,8 @@ PluginComponent {
                         }
                     }
                 }
+
+
 
                 // --- Pinned Files Section ---
                 Column {
@@ -364,7 +392,7 @@ PluginComponent {
                         StyledText { text: "Screen captures"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
                     }
                     StyledRect {
-                        id: ssCont; width: parent.width; height: ssGrid.implicitHeight
+                        id: ssCont; width: parent.width; height: ssGrid.implicitHeight + (root.ssPadding * 2)
                         radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.5)
                         border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
                         Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -374,6 +402,8 @@ PluginComponent {
                             columns: root.ssCols
                             spacing: Theme.spacingS
                             padding: root.ssPadding
+                            anchors.top: parent.top
+                            anchors.left: parent.left
 
                             property int itemWidth: (width - (padding * 2) - (columns > 1 ? (columns - 1) * spacing : 0)) / Math.max(1, columns)
                             property int itemHeight: root.recentScreenshots.length <= 2 ? Math.min(160, itemWidth * 0.625) : 72
@@ -492,7 +522,11 @@ PluginComponent {
                         }
                     }
                 }
+
+
             }
         }
     }
+
+
 }
