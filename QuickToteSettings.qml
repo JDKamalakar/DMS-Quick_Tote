@@ -21,6 +21,7 @@ PluginSettings {
 
         function saveValue(key, val) {
             PluginService.savePluginData(root.pluginId, key, val);
+            PluginService.setGlobalVar(root.pluginId, key, val);
         }
 
         function loadValueInternal() {

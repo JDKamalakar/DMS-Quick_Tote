@@ -10,15 +10,15 @@ import Qt5Compat.GraphicalEffects
 
 PluginComponent {
     id: root
-    pluginId: "quickTote"
     
     popoutWidth: 340
+    popoutHeight: 0
 
-    // --- Settings (Reactive PluginData) ---
-    property string downloadsPath: pluginData.downloadsPath || "~/Downloads"
-    property string screenshotsPath: pluginData.screenshotsPath || "~/Pictures/Screenshots"
-    property int maxDownloads: pluginData.maxDownloads !== undefined ? pluginData.maxDownloads : 6
-    property int maxScreenshots: pluginData.maxScreenshots !== undefined ? pluginData.maxScreenshots : 6
+    // --- Settings (Reliable PluginService Loading) ---
+    property string downloadsPath: PluginService.loadPluginData("quickTote", "downloadsPath", "~/Downloads")
+    property string screenshotsPath: PluginService.loadPluginData("quickTote", "screenshotsPath", "~/Pictures/Screenshots")
+    property int maxDownloads: PluginService.loadPluginData("quickTote", "maxDownloads", 6)
+    property int maxScreenshots: PluginService.loadPluginData("quickTote", "maxScreenshots", 6)
     
     // --- State Management ---
     property var pinnedFiles: []
@@ -62,14 +62,17 @@ PluginComponent {
         }
     }
 
-    Connections {
-        target: root
-        function onPluginDataChanged() {
-            root.refresh();
-        }
+    // --- Reactivity (New DMS Standard) ---
+    PluginGlobalVar { varName: "downloadsPath"; onValueChanged: { root.downloadsPath = value; root.refresh() } }
+    PluginGlobalVar { varName: "screenshotsPath"; onValueChanged: { root.screenshotsPath = value; root.refresh() } }
+    PluginGlobalVar { varName: "maxDownloads"; onValueChanged: { root.maxDownloads = value; root.refresh() } }
+    PluginGlobalVar { varName: "maxScreenshots"; onValueChanged: { root.maxScreenshots = value; root.refresh() } }
+
+    onPluginDataChanged: {
+        if (!pluginData) return;
+        // Fallback for older DMS versions
+        root.refresh();
     }
-
-
 
     onDownloadsPathChanged: refresh()
     onScreenshotsPathChanged: refresh()
@@ -291,7 +294,7 @@ PluginComponent {
                 Column {
                     width: parent.width; spacing: Theme.spacingS
                     opacity: pinnedModel.count > 0 ? 1 : 0
-                    height: pinnedModel.count > 0 ? (pinnedHead.height + (Math.ceil(pinnedModel.count / 2) * 52) + 24 + Theme.spacingS) : 0
+                    height: pinnedModel.count > 0 ? (pinnedHead.height + pinnedCont.height + Theme.spacingS + 6) : 0
                     visible: opacity > 0; clip: true
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
@@ -307,9 +310,20 @@ PluginComponent {
                     }
 
                     StyledRect {
-                        width: parent.width; height: (Math.ceil(pinnedModel.count / 2) * 52) + 24
-                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.5)
-                        border.width: 1; border.color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.1)
+                        id: pinnedCont
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 6
+                        height: (Math.ceil(pinnedModel.count / 2) * 52) + 24
+                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
+                        border.width: 1; border.color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
+                        
+                        layer.enabled: true
+                        layer.effect: DropShadow {
+                            transparentBorder: true
+                            horizontalOffset: 0; verticalOffset: 2
+                            radius: 6.0; samples: 16
+                            color: Qt.rgba(0,0,0,0.15)
+                        }
                         
                         GridView {
                             id: pinnedGv; anchors.fill: parent; anchors.margins: 12
@@ -371,7 +385,7 @@ PluginComponent {
                 Column {
                     width: parent.width; spacing: Theme.spacingS
                     opacity: root.recentScreenshots.length > 0 ? 1 : 0
-                    height: root.recentScreenshots.length > 0 ? (ssHead.height + ssCont.height + Theme.spacingS * 2) : 0
+                    height: root.recentScreenshots.length > 0 ? (ssHead.height + ssCont.height + Theme.spacingS * 2 + 6) : 0
                     visible: opacity > 0; clip: true
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
@@ -392,9 +406,20 @@ PluginComponent {
                         StyledText { text: "Screen captures"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
                     }
                     StyledRect {
-                        id: ssCont; width: parent.width; height: ssGrid.implicitHeight + (root.ssPadding * 2)
-                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.5)
-                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+                        id: ssCont
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 6
+                        height: ssGrid.implicitHeight
+                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
+                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                        
+                        layer.enabled: true
+                        layer.effect: DropShadow {
+                            transparentBorder: true
+                            horizontalOffset: 0; verticalOffset: 2
+                            radius: 6.0; samples: 16
+                            color: Qt.rgba(0,0,0,0.15)
+                        }
                         Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
                         Grid {
@@ -402,8 +427,6 @@ PluginComponent {
                             columns: root.ssCols
                             spacing: Theme.spacingS
                             padding: root.ssPadding
-                            anchors.top: parent.top
-                            anchors.left: parent.left
 
                             property int itemWidth: (width - (padding * 2) - (columns > 1 ? (columns - 1) * spacing : 0)) / Math.max(1, columns)
                             property int itemHeight: root.recentScreenshots.length <= 2 ? Math.min(160, itemWidth * 0.625) : 72
@@ -443,7 +466,7 @@ PluginComponent {
                 Column {
                     width: parent.width; spacing: Theme.spacingS
                     opacity: root.recentDownloads.length > 0 ? 1 : 0
-                    height: root.recentDownloads.length > 0 ? (dlHead.height + dlCont.height + Theme.spacingS * 2) : 0
+                    height: root.recentDownloads.length > 0 ? (dlHead.height + dlCont.height + Theme.spacingS * 2 + 6) : 0
                     visible: opacity > 0; clip: true
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
@@ -464,9 +487,20 @@ PluginComponent {
                         StyledText { text: "Recent downloads"; font.weight: Font.Bold; font.pixelSize: Theme.fontSizeMedium; color: Theme.surfaceText }
                     }
                     StyledRect {
-                        id: dlCont; width: parent.width; height: dlLv.contentHeight + 24
-                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.5)
-                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+                        id: dlCont
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.leftMargin: 6; anchors.rightMargin: 6; anchors.bottomMargin: 6
+                        height: dlLv.contentHeight + 24
+                        radius: Theme.cornerRadius * 1.5; color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
+                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                        
+                        layer.enabled: true
+                        layer.effect: DropShadow {
+                            transparentBorder: true
+                            horizontalOffset: 0; verticalOffset: 2
+                            radius: 6.0; samples: 16
+                            color: Qt.rgba(0,0,0,0.15)
+                        }
                         ListView {
                             id: dlLv; anchors.fill: parent; anchors.margins: 12; spacing: 6
                             model: root.recentDownloads; interactive: false
