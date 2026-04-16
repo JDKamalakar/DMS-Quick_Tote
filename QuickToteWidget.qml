@@ -15,8 +15,12 @@ PluginComponent {
     popoutHeight: 0
 
     // --- Settings (Reliable PluginService Loading) ---
-    property string downloadsPath: PluginService.loadPluginData("quickTote", "downloadsPath", "~/Downloads")
-    property string screenshotsPath: PluginService.loadPluginData("quickTote", "screenshotsPath", "~/Pictures/Screenshots")
+    property string _downloadsPath: PluginService.loadPluginData("quickTote", "downloadsPath", "~/Downloads")
+    property string _screenshotsPath: PluginService.loadPluginData("quickTote", "screenshotsPath", "~/Pictures/Screenshots")
+    
+    property string downloadsPath: (_downloadsPath && _downloadsPath.trim() !== "") ? _downloadsPath : "~/Downloads"
+    property string screenshotsPath: (_screenshotsPath && _screenshotsPath.trim() !== "") ? _screenshotsPath : "~/Pictures/Screenshots"
+    
     property int maxDownloads: PluginService.loadPluginData("quickTote", "maxDownloads", 6)
     property int maxScreenshots: PluginService.loadPluginData("quickTote", "maxScreenshots", 6)
     
@@ -63,8 +67,8 @@ PluginComponent {
     }
 
     // --- Reactivity (New DMS Standard) ---
-    PluginGlobalVar { varName: "downloadsPath"; onValueChanged: { root.downloadsPath = value; root.refresh() } }
-    PluginGlobalVar { varName: "screenshotsPath"; onValueChanged: { root.screenshotsPath = value; root.refresh() } }
+    PluginGlobalVar { varName: "downloadsPath"; onValueChanged: { root._downloadsPath = value; root.refresh() } }
+    PluginGlobalVar { varName: "screenshotsPath"; onValueChanged: { root._screenshotsPath = value; root.refresh() } }
     PluginGlobalVar { varName: "maxDownloads"; onValueChanged: { root.maxDownloads = value; root.refresh() } }
     PluginGlobalVar { varName: "maxScreenshots"; onValueChanged: { root.maxScreenshots = value; root.refresh() } }
 
@@ -446,7 +450,10 @@ PluginComponent {
 
                     Column {
                         id: ssContentCol
-                        anchors.fill: parent; anchors.margins: Theme.spacingM
+                        width: parent.width - Theme.spacingM * 2
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.top: parent.top
+                        anchors.topMargin: Theme.spacingM
                         spacing: Theme.spacingS
 
                         RowLayout {
@@ -540,7 +547,10 @@ PluginComponent {
 
                     Column {
                         id: dlContentCol
-                        anchors.fill: parent; anchors.margins: Theme.spacingM
+                        width: parent.width - Theme.spacingM * 2
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.top: parent.top
+                        anchors.topMargin: Theme.spacingM
                         spacing: Theme.spacingS
 
                         RowLayout {
@@ -549,79 +559,71 @@ PluginComponent {
                             StyledText { text: "Recent downloads"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
                         }
 
-                        ListView {
-                            id: dlLv; width: parent.width; height: contentHeight; spacing: 6
-                            model: root.recentDownloads; interactive: false
-                            add: Transition { 
-                                NumberAnimation { property: "y"; from: 42; duration: 350; easing.type: Easing.OutBack } 
-                                NumberAnimation { properties: "opacity"; from: 0; to: 1; duration: 250 } 
-                            }
-                            remove: Transition { 
-                                NumberAnimation { property: "y"; to: 42; duration: 300; easing.type: Easing.InBack } 
-                                NumberAnimation { properties: "opacity,scale"; to: 0; duration: 200 } 
-                            }
-                            displaced: Transition { NumberAnimation { properties: "y"; duration: 400; easing.type: Easing.OutBack } }
-                            delegate: Item {
-                                id: dlDelegate
-                                width: dlLv.width; height: 42
-                                property bool hovered: maDL.containsMouse || dlPinMa.containsMouse
-                                property bool isDragging: false
+                        Column {
+                            id: dlContainer; width: parent.width; spacing: 6
+                            Repeater {
+                                model: root.recentDownloads
+                                delegate: Item {
+                                    id: dlDelegate; width: dlContainer.width; height: 42
+                                    property bool hovered: maDL.containsMouse || dlPinMa.containsMouse
+                                    property bool isDragging: false
 
-                                opacity: isDragging ? 0.45 : 1.0
-                                Behavior on opacity { NumberAnimation { duration: 150 } }
+                                    opacity: isDragging ? 0.45 : 1.0
+                                    Behavior on opacity { NumberAnimation { duration: 150 } }
 
-                                MouseArea {
-                                    id: maDL; anchors.fill: parent; hoverEnabled: true
-                                    property real pressX: 0; property real pressY: 0
-                                    property bool dragLaunched: false
-                                    onPressed: (m) => { pressX = m.x; pressY = m.y; dragLaunched = false; dlRip.trigger(m.x, m.y) }
-                                    onPositionChanged: (m) => {
-                                        if (!dragLaunched && pressed) {
-                                            let dx = m.x - pressX; let dy = m.y - pressY;
-                                            if (Math.sqrt(dx*dx + dy*dy) > 12) {
-                                                dragLaunched = true;
-                                                dlDelegate.isDragging = true;
-                                                root.startSystemDrag(modelData.path);
-                                                root.closePopout();
+                                    MouseArea {
+                                        id: maDL; anchors.fill: parent; hoverEnabled: true
+                                        property real pressX: 0; property real pressY: 0
+                                        property bool dragLaunched: false
+                                        onPressed: (m) => { pressX = m.x; pressY = m.y; dragLaunched = false; dlRip.trigger(m.x, m.y) }
+                                        onPositionChanged: (m) => {
+                                            if (!dragLaunched && pressed) {
+                                                let dx = m.x - pressX; let dy = m.y - pressY;
+                                                if (Math.sqrt(dx*dx + dy*dy) > 12) {
+                                                    dragLaunched = true;
+                                                    dlDelegate.isDragging = true;
+                                                    root.startSystemDrag(modelData.path);
+                                                    root.closePopout();
+                                                }
                                             }
                                         }
+                                        onReleased: { dlDelegate.isDragging = false; dragLaunched = false; }
+                                        onClicked: { if (!dragLaunched) root.openFile(modelData.path); }
                                     }
-                                    onReleased: { dlDelegate.isDragging = false; dragLaunched = false; }
-                                    onClicked: { if (!dragLaunched) root.openFile(modelData.path); }
-                                }
-                                Rectangle {
-                                    anchors.fill: parent; radius: Theme.cornerRadius
-                                    color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.15 : 0.08)
-                                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.3 : 0.1)
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
-                                    Rectangle { anchors.fill: parent; radius: parent.radius; color: "white"; opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
-                                }
-                                DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: Theme.cornerRadius; rippleColor: Theme.primary }
-                                RowLayout {
-                                    anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 0; spacing: Theme.spacingS
                                     Rectangle {
-                                        id: dlThumb; width: 26; height: 26; radius: 13; color: Theme.surfaceContainer
-                                        Layout.alignment: Qt.AlignVCenter; layer.enabled: true
-                                        layer.effect: OpacityMask { maskSource: Rectangle { width: 26; height: 26; radius: 13 } }
-                                        Image { visible: root.isImage(modelData.path); anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true }
-                                        DankIcon { visible: !root.isImage(modelData.path); anchors.centerIn: parent; name: root.getIcon(modelData.path); size: 12; color: Theme.primary }
+                                        anchors.fill: parent; radius: Theme.cornerRadius
+                                        color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.15 : 0.08)
+                                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.3 : 0.1)
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                                        Rectangle { anchors.fill: parent; radius: parent.radius; color: "white"; opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
                                     }
-                                    Column {
-                                        Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
-                                        StyledText { width: parent.width; text: modelData.name; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText; elide: Text.ElideRight }
-                                        StyledText { width: parent.width; text: modelData.path; font.pixelSize: Theme.fontSizeSmall - 2; color: Theme.surfaceVariantText; opacity: 0.6; elide: Text.ElideMiddle }
-                                    }
-                                    Item {
-                                        width: 40; height: 38; Layout.alignment: Qt.AlignVCenter
-                                        DankIcon { 
-                                            anchors.centerIn: parent; name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? Theme.primary : Theme.surfaceVariantText
-                                            rotation: root.isPinned(modelData.path) ? 0 : 45
-                                            scale: (hovered || root.isPinned(modelData.path)) ? (dlPinMa.pressed ? 0.8 : 1.2) : 0.0
-                                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
-                                            Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                                    DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: Theme.cornerRadius; rippleColor: Theme.primary }
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 0; spacing: Theme.spacingS
+                                        Rectangle {
+                                            id: dlThumb; width: 26; height: 26; radius: 13; color: Theme.surfaceContainer
+                                            Layout.alignment: Qt.AlignVCenter; layer.enabled: true
+                                            layer.effect: OpacityMask { maskSource: Rectangle { width: 26; height: 26; radius: 13 } }
+                                            Image { visible: root.isImage(modelData.path); anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                                            DankIcon { visible: !root.isImage(modelData.path); anchors.centerIn: parent; name: root.getIcon(modelData.path); size: 12; color: Theme.primary }
                                         }
-                                        MouseArea { id: dlPinMa; anchors.fill: parent; hoverEnabled: true; onClicked: root.togglePin(modelData.path) }
+                                        Column {
+                                            Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
+                                            StyledText { width: parent.width; text: modelData.name; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceText; elide: Text.ElideRight }
+                                            StyledText { width: parent.width; text: modelData.path; font.pixelSize: Theme.fontSizeSmall - 2; color: Theme.surfaceVariantText; opacity: 0.6; elide: Text.ElideMiddle }
+                                        }
+                                        Item {
+                                            width: 40; height: 38; Layout.alignment: Qt.AlignVCenter
+                                            DankIcon { 
+                                                anchors.centerIn: parent; name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? Theme.primary : Theme.surfaceVariantText
+                                                rotation: root.isPinned(modelData.path) ? 0 : 45
+                                                scale: (hovered || root.isPinned(modelData.path)) ? (dlPinMa.pressed ? 0.8 : 1.2) : 0.0
+                                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                                                Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                                            }
+                                            MouseArea { id: dlPinMa; anchors.fill: parent; hoverEnabled: true; onClicked: root.togglePin(modelData.path) }
+                                        }
                                     }
                                 }
                             }
