@@ -15,11 +15,20 @@ PluginComponent {
     popoutHeight: 0
 
     // --- Settings (Reliable PluginService Loading) ---
-    property string _downloadsPath: PluginService.loadPluginData("quickTote", "downloadsPath", "~/Downloads")
-    property string _screenshotsPath: PluginService.loadPluginData("quickTote", "screenshotsPath", "~/Pictures/Screenshots")
+    property string _downloadsPath: PluginService.loadPluginData("quickTote", "downloadsPath", "")
+    property string _screenshotsPath: PluginService.loadPluginData("quickTote", "screenshotsPath", "")
     
-    property string downloadsPath: (_downloadsPath && _downloadsPath.trim() !== "") ? _downloadsPath : "~/Downloads"
-    property string screenshotsPath: (_screenshotsPath && _screenshotsPath.trim() !== "") ? _screenshotsPath : "~/Pictures/Screenshots"
+    // Robust fallbacks ensure valid paths even if settings are manually cleared or missing
+    property string downloadsPath: {
+        let p = _downloadsPath ? _downloadsPath.trim() : "";
+        if (p === "") return "~/Downloads";
+        return p;
+    }
+    property string screenshotsPath: {
+        let p = _screenshotsPath ? _screenshotsPath.trim() : "";
+        if (p === "") return "~/Pictures/Screenshots";
+        return p;
+    }
     
     property int maxDownloads: PluginService.loadPluginData("quickTote", "maxDownloads", 6)
     property int maxScreenshots: PluginService.loadPluginData("quickTote", "maxScreenshots", 6)
@@ -111,6 +120,39 @@ PluginComponent {
 
     // --- ListModel Management ---
     ListModel { id: pinnedModel }
+    ListModel { id: downloadsModel }
+
+    function syncDownloads() {
+        let raw = root.recentDownloads;
+        if (!raw) { downloadsModel.clear(); return; }
+        
+        // Identity-based sync for smooth ListView animations
+        for(let i=0; i<downloadsModel.count; i++) downloadsModel.setProperty(i, "visited", false);
+        
+        for(let i=0; i<raw.length; i++) {
+            let item = raw[i];
+            let found = false;
+            for(let j=0; j<downloadsModel.count; j++) {
+                if(downloadsModel.get(j).path === item.path) {
+                    downloadsModel.setProperty(j, "visited", true);
+                    if (j !== i) downloadsModel.move(j, i, 1);
+                    found = true;
+                    break;
+                }
+            }
+            if(!found) {
+                downloadsModel.insert(i, {
+                    "path": item.path,
+                    "name": item.name,
+                    "visited": true
+                });
+            }
+        }
+        
+        for(let i=downloadsModel.count-1; i>=0; i--) {
+            if(downloadsModel.get(i).visited === false) downloadsModel.remove(i);
+        }
+    }
 
     Component.onCompleted: {
         pinLoader.running = true; // Hard load pins from our custom disk file
@@ -163,6 +205,7 @@ PluginComponent {
             onStreamFinished: {
                 let lines = text.trim().split('\n').filter(l => l !== "");
                 root.recentDownloads = lines.map(root.getFileInfo).filter(f => f !== null);
+                root.syncDownloads();
             }
         }
     }
@@ -510,7 +553,7 @@ PluginComponent {
                                         DankRipple { id: ssRip; anchors.fill: parent; cornerRadius: 12; rippleColor: Theme.primary }
                                     }
                                     Item {
-                                        width: 32; height: 32; anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: -8; anchors.rightMargin: -8
+                                        width: 32; height: 32; anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: -6; anchors.rightMargin: -6
                                         scale: (ssDelegate.hovered || root.isPinned(modelData.path)) ? 1.0 : 0.0
                                         Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
                                         Rectangle { anchors.centerIn: parent; width: 24; height: 24; radius: 12; color: root.isPinned(modelData.path) ? Theme.primary : Theme.surfaceContainer; border.width: 1; border.color: Theme.outline
@@ -560,7 +603,7 @@ PluginComponent {
                         }
 
                         Column {
-                            id: dlContainer; width: parent.width; spacing: 6
+                            id: dlContainer; width: parent.width; spacing: 4
                             Repeater {
                                 model: root.recentDownloads
                                 delegate: Item {
@@ -590,15 +633,35 @@ PluginComponent {
                                         onReleased: { dlDelegate.isDragging = false; dragLaunched = false; }
                                         onClicked: { if (!dragLaunched) root.openFile(modelData.path); }
                                     }
+                                    layer.enabled: true
+                                    layer.effect: OpacityMask {
+                                        maskSource: Canvas {
+                                            width: dlDelegate.width; height: dlDelegate.height
+                                            onPaint: {
+                                                var ctx = getContext("2d");
+                                                ctx.clearRect(0, 0, width, height);
+                                                let rTop = (index === 0) ? Theme.cornerRadius : 6;
+                                                let rBot = (index === root.recentDownloads.length - 1) ? Theme.cornerRadius : 6;
+                                                ctx.fillStyle = "black"; // Mask value
+                                                ctx.beginPath();
+                                                ctx.moveTo(rTop, 0); ctx.lineTo(width - rTop, 0); ctx.arcTo(width, 0, width, rTop, rTop);
+                                                ctx.lineTo(width, height - rBot); ctx.arcTo(width, height, width - rBot, height, rBot);
+                                                ctx.lineTo(rBot, height); ctx.arcTo(0, height, 0, height - rBot, rBot);
+                                                ctx.lineTo(0, rTop); ctx.arcTo(0, 0, rTop, 0, rTop);
+                                                ctx.closePath(); ctx.fill();
+                                            }
+                                        }
+                                    }
+
                                     Rectangle {
-                                        anchors.fill: parent; radius: Theme.cornerRadius
+                                        id: bgMain; anchors.fill: parent
                                         color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.15 : 0.08)
                                         border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, hovered ? 0.3 : 0.1)
                                         Behavior on color { ColorAnimation { duration: 150 } }
                                         Behavior on border.color { ColorAnimation { duration: 150 } }
-                                        Rectangle { anchors.fill: parent; radius: parent.radius; color: "white"; opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
+                                        Rectangle { anchors.fill: parent; color: "white"; opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
                                     }
-                                    DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: Theme.cornerRadius; rippleColor: Theme.primary }
+                                    DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: 0; rippleColor: Theme.primary }
                                     RowLayout {
                                         anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 0; spacing: Theme.spacingS
                                         Rectangle {
