@@ -330,7 +330,16 @@ PluginComponent {
                             GradientStop { position: 0.0; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15) }
                             GradientStop { position: 1.0; color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.08) }
                         }
-                        border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.25)
+                        
+                        layer.enabled: true
+                        layer.effect: DropShadow {
+                            transparentBorder: true
+                            horizontalOffset: 0
+                            verticalOffset: 3
+                            radius: 12.0
+                            samples: 24
+                            color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
+                        }
                     }
                     RowLayout {
                         anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
@@ -365,15 +374,14 @@ PluginComponent {
                     opacity: pinnedModel.count > 0 ? 1 : 0
                     height: pinnedModel.count > 0 ? (pinnedContentCol.implicitHeight + Theme.spacingM * 2) : 0
                     visible: opacity > 0; clip: true
-                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.4)
-                    border.width: 1; border.color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
+                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     
                     layer.enabled: true
                     layer.effect: DropShadow {
                         transparentBorder: true
-                        horizontalOffset: 0; verticalOffset: 2
-                        radius: 6.0; samples: 16
-                        color: Qt.rgba(0,0,0,0.15)
+                        horizontalOffset: 0; verticalOffset: 3
+                        radius: 12.0; samples: 24
+                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
                     }
 
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -385,6 +393,7 @@ PluginComponent {
                         spacing: Theme.spacingS
 
                         RowLayout {
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: 12; anchors.rightMargin: 12
                             spacing: Theme.spacingXS; width: parent.width
                             DankIcon { name: "push_pin"; size: 14; color: Theme.secondary }
                             StyledText { text: "Pinned files"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
@@ -443,7 +452,7 @@ PluginComponent {
                                 }
                                 DankRipple { id: pRipG; anchors.fill: parent; anchors.margins: 4; cornerRadius: Theme.cornerRadius; rippleColor: Theme.secondary }
                                 RowLayout {
-                                    anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 4; spacing: 8
+                                    anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 8
                                     Rectangle {
                                         id: pinThumb; width: 28; height: 28; radius: 14; color: Theme.surfaceContainer
                                         Layout.alignment: Qt.AlignVCenter; layer.enabled: true
@@ -477,15 +486,14 @@ PluginComponent {
                     opacity: root.recentScreenshots.length > 0 ? 1 : 0
                     height: root.recentScreenshots.length > 0 ? (ssContentCol.implicitHeight + Theme.spacingM * 2) : 0
                     visible: opacity > 0; clip: true
-                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.4)
-                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     
                     layer.enabled: true
                     layer.effect: DropShadow {
                         transparentBorder: true
-                        horizontalOffset: 0; verticalOffset: 2
-                        radius: 6.0; samples: 16
-                        color: Qt.rgba(0,0,0,0.15)
+                        horizontalOffset: 0; verticalOffset: 3
+                        radius: 12.0; samples: 24
+                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
                     }
 
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -500,6 +508,7 @@ PluginComponent {
                         spacing: Theme.spacingS
 
                         RowLayout {
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: 12; anchors.rightMargin: 12
                             spacing: Theme.spacingXS; width: parent.width
                             DankIcon { name: "screenshot_region"; size: 14; color: Theme.primary }
                             StyledText { text: "Screen captures"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
@@ -574,15 +583,14 @@ PluginComponent {
                     opacity: root.recentDownloads.length > 0 ? 1 : 0
                     height: root.recentDownloads.length > 0 ? (dlContentCol.implicitHeight + Theme.spacingM * 2) : 0
                     visible: opacity > 0; clip: true
-                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.4)
-                    border.width: 1; border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                    radius: Theme.cornerRadius; color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                     
                     layer.enabled: true
                     layer.effect: DropShadow {
                         transparentBorder: true
-                        horizontalOffset: 0; verticalOffset: 2
-                        radius: 6.0; samples: 16
-                        color: Qt.rgba(0,0,0,0.15)
+                        horizontalOffset: 0; verticalOffset: 3
+                        radius: 12.0; samples: 24
+                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
                     }
 
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
@@ -597,6 +605,7 @@ PluginComponent {
                         spacing: Theme.spacingS
 
                         RowLayout {
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.leftMargin: 12; anchors.rightMargin: 12
                             spacing: Theme.spacingXS; width: parent.width
                             DankIcon { name: "download"; size: 14; color: Theme.primary }
                             StyledText { text: "Recent downloads"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
@@ -663,7 +672,7 @@ PluginComponent {
                                     }
                                     DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: 0; rippleColor: Theme.primary }
                                     RowLayout {
-                                        anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 0; spacing: Theme.spacingS
+                                        anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: Theme.spacingS
                                         Rectangle {
                                             id: dlThumb; width: 26; height: 26; radius: 13; color: Theme.surfaceContainer
                                             Layout.alignment: Qt.AlignVCenter; layer.enabled: true
