@@ -535,8 +535,32 @@ PluginComponent {
                                     }
                                     Item {
                                         width: 40; height: 40; Layout.alignment: Qt.AlignVCenter
+                                        Rectangle {
+                                            id: pinBtnBg
+                                            anchors.centerIn: pushPinIcon
+                                            width: 28; height: 28; radius: 8
+                                            color: pinBtnMaGrid.containsMouse ? Theme.withAlpha(Theme.secondary, 0.15) : "transparent"
+                                            border.color: Theme.withAlpha(Theme.secondary, 0.3)
+                                            border.width: pinBtnMaGrid.containsMouse ? 1 : 0
+                                            opacity: pinBtnMaGrid.containsMouse ? 1 : 0
+                                            scale: pinBtnMaGrid.containsMouse ? 1 : 0.95
+                                            
+                                            Behavior on color { ColorAnimation { duration: 250 } }
+                                            Behavior on opacity { NumberAnimation { duration: 250 } }
+                                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                                            Behavior on border.width { NumberAnimation { duration: 250 } }
+                                            
+                                            layer.enabled: true
+                                            layer.effect: DropShadow {
+                                                transparentBorder: true
+                                                radius: 8; samples: 16
+                                                color: Theme.withAlpha(Theme.shadowColor || "#000000", pinBtnMaGrid.containsMouse ? 0.35 : 0)
+                                                Behavior on color { ColorAnimation { duration: 250 } }
+                                            }
+                                        }
                                         DankIcon {
-                                            anchors.centerIn: parent; name: "push_pin"; size: 14; color: Theme.secondary; opacity: 0.8
+                                            id: pushPinIcon
+                                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; name: "push_pin"; size: 14; color: Theme.secondary; opacity: 0.8
                                             scale: (hovered || root.isPinned(filePath)) ? (pinBtnMaGrid.pressed ? 0.8 : 1.2) : 0.0
                                             Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
                                         }
@@ -636,8 +660,26 @@ PluginComponent {
                                         width: 32; height: 32; anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: -6; anchors.rightMargin: -6
                                         scale: (ssDelegate.hovered || root.isPinned(modelData.path)) ? 1.0 : 0.0
                                         Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
-                                        Rectangle { anchors.centerIn: parent; width: 24; height: 24; radius: 12; color: root.isPinned(modelData.path) ? Theme.primary : Theme.surfaceContainer; border.width: 1; border.color: Theme.outline
-                                            DankIcon { name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? "white" : Theme.surfaceText; anchors.centerIn: parent; rotation: root.isPinned(modelData.path) ? 0 : 45; Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } } }
+                                        Rectangle { 
+                                            id: ssPinBg
+                                            anchors.centerIn: parent; width: 24; height: 24; radius: 6
+                                            color: root.isPinned(modelData.path) ? Theme.primary : (ssPinMa.containsMouse ? Theme.withAlpha(Theme.secondary, 0.15) : Theme.surfaceContainer)
+                                            border.width: 1; border.color: ssPinMa.containsMouse ? Theme.withAlpha(Theme.secondary, 0.3) : Theme.outline
+                                            
+                                            Behavior on color { ColorAnimation { duration: 200 } }
+                                            
+                                            layer.enabled: true
+                                            layer.effect: DropShadow {
+                                                transparentBorder: true; radius: 6; samples: 12
+                                                color: Theme.withAlpha(Theme.shadowColor || "#000000", ssPinMa.containsMouse ? 0.35 : 0)
+                                                Behavior on color { ColorAnimation { duration: 200 } }
+                                            }
+                                        }
+                                        DankIcon { 
+                                            name: "push_pin"; size: 14; 
+                                            color: root.isPinned(modelData.path) ? "white" : (ssPinMa.containsMouse ? Theme.secondary : Theme.surfaceText)
+                                            anchors.centerIn: parent; rotation: root.isPinned(modelData.path) ? 0 : 45
+                                            Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } } 
                                         }
                                         MouseArea { id: ssPinMa; anchors.fill: parent; hoverEnabled: true; onClicked: root.togglePin(modelData.path) }
                                     }
@@ -792,8 +834,32 @@ PluginComponent {
                                         }
                                         Item {
                                             width: 40; height: 38; Layout.alignment: Qt.AlignVCenter
+                                            Rectangle {
+                                                id: dlPinBtnBg
+                                                anchors.centerIn: dlPushPinIcon
+                                                width: 28; height: 28; radius: 8
+                                                color: dlPinMa.containsMouse ? Theme.withAlpha(Theme.secondary, 0.15) : "transparent"
+                                                border.color: Theme.withAlpha(Theme.secondary, 0.3)
+                                                border.width: dlPinMa.containsMouse ? 1 : 0
+                                                opacity: dlPinMa.containsMouse ? 1 : 0
+                                                scale: dlPinMa.containsMouse ? 1 : 0.95
+                                                
+                                                Behavior on color { ColorAnimation { duration: 250 } }
+                                                Behavior on opacity { NumberAnimation { duration: 250 } }
+                                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                                                Behavior on border.width { NumberAnimation { duration: 250 } }
+                                                
+                                                layer.enabled: true
+                                                layer.effect: DropShadow {
+                                                    transparentBorder: true
+                                                    radius: 8; samples: 16
+                                                    color: Theme.withAlpha(Theme.shadowColor || "#000000", dlPinMa.containsMouse ? 0.35 : 0)
+                                                    Behavior on color { ColorAnimation { duration: 250 } }
+                                                }
+                                            }
                                             DankIcon { 
-                                                anchors.centerIn: parent; name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? Theme.secondary : Theme.surfaceVariantText
+                                                id: dlPushPinIcon
+                                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? Theme.secondary : Theme.surfaceVariantText
                                                 rotation: root.isPinned(modelData.path) ? 0 : 45
                                                 scale: (hovered || root.isPinned(modelData.path)) ? (dlPinMa.pressed ? 0.8 : 1.2) : 0.0
                                                 Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
