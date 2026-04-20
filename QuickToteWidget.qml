@@ -478,12 +478,12 @@ PluginComponent {
                                     property real brrAnim: brr; Behavior on brrAnim { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
 
                                     property color paintColor: hovered
-                                            ? Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
-                                            : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.08)
+                                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                                            : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
                                     
                                     property color paintBorder: hovered
-                                            ? Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.3)
-                                            : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.1)
+                                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
+                                            : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
 
                                     onTlrAnimChanged: requestPaint()
                                     onTrrAnimChanged: requestPaint()
@@ -519,7 +519,7 @@ PluginComponent {
                                         opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } 
                                     }
                                 }
-                                DankRipple { id: pRipG; anchors.fill: parent; cornerRadius: pinBg.tlr; rippleColor: Theme.secondary }
+                                DankRipple { id: pRipG; anchors.fill: parent; cornerRadius: pinBg.tlr; rippleColor: Theme.primary }
                                 RowLayout {
                                     anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 8
                                     Rectangle {
@@ -527,7 +527,7 @@ PluginComponent {
                                         Layout.alignment: Qt.AlignVCenter; layer.enabled: true
                                         layer.effect: OpacityMask { maskSource: Rectangle { width: 28; height: 28; radius: 14 } }
                                         Image { visible: root.isImage(filePath); anchors.fill: parent; source: "file://" + filePath; fillMode: Image.PreserveAspectCrop; asynchronous: true }
-                                        DankIcon { visible: !root.isImage(filePath); anchors.centerIn: parent; name: root.getIcon(filePath); size: 12; color: Theme.secondary }
+                                        DankIcon { visible: !root.isImage(filePath); anchors.centerIn: parent; name: root.getIcon(filePath); size: 12; color: Theme.primary }
                                     }
                                     StyledText {
                                         Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
@@ -539,8 +539,8 @@ PluginComponent {
                                             id: pinBtnBg
                                             anchors.centerIn: pushPinIcon
                                             width: 28; height: 28; radius: 8
-                                            color: pinBtnMaGrid.containsMouse ? Theme.withAlpha(Theme.secondary, 0.15) : "transparent"
-                                            border.color: Theme.withAlpha(Theme.secondary, 0.3)
+                                            color: pinBtnMaGrid.containsMouse ? Theme.withAlpha(Theme.primary, 0.15) : "transparent"
+                                            border.color: Theme.withAlpha(Theme.primary, 0.3)
                                             border.width: pinBtnMaGrid.containsMouse ? 1 : 0
                                             opacity: pinBtnMaGrid.containsMouse ? 1 : 0
                                             scale: pinBtnMaGrid.containsMouse ? 1 : 0.95
@@ -560,7 +560,7 @@ PluginComponent {
                                         }
                                         DankIcon {
                                             id: pushPinIcon
-                                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; name: "push_pin"; size: 14; color: Theme.secondary; opacity: 0.8
+                                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; name: "push_pin"; size: 14; color: Theme.primary; opacity: 0.8
                                             scale: (hovered || root.isPinned(filePath)) ? (pinBtnMaGrid.pressed ? 0.8 : 1.2) : 0.0
                                             Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
                                         }
@@ -609,10 +609,10 @@ PluginComponent {
                             StyledText { text: "Screen Captures"; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
                         }
 
-                        Grid {
+                        Flow {
                             id: ssGrid; width: parent.width
-                            columns: root.ssCols
-                            spacing: Theme.spacingS
+                            spacing: 4
+                            property int columns: root.ssCols
 
                             property int itemWidth: (width - (columns > 1 ? (columns - 1) * spacing : 0)) / Math.max(1, columns)
                             property int itemHeight: root.recentScreenshots.length <= 2 ? Math.min(160, itemWidth * 0.625) : 72
@@ -620,11 +620,41 @@ PluginComponent {
                             Repeater {
                                 model: root.recentScreenshots
                                 Item {
-                                    id: ssDelegate; width: ssGrid.itemWidth; height: ssGrid.itemHeight
+                                    id: ssDelegate
+                                    property bool isOddLayout: root.recentScreenshots.length % 2 === 1 && root.recentScreenshots.length > 1
+                                    property bool isSpan2: isOddLayout && index === 0
+                                    
+                                    width: isSpan2 ? (ssGrid.itemWidth * 2 + ssGrid.spacing) : ssGrid.itemWidth
+                                    height: ssGrid.itemHeight
                                     property bool isDragging: false
                                     Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
                                     Behavior on height { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
                                     property bool hovered: maSS.containsMouse || ssPinMa.containsMouse
+
+                                    // Dynamic Corner Logic
+                                    property real innerRadius: 6
+                                    property real outerRadius: 12
+                                    
+                                    property int virtualIndex: isOddLayout ? (index === 0 ? 0 : index + 1) : index
+                                    
+                                    property bool isFirstRow: virtualIndex < Math.max(1, ssGrid.columns)
+                                    property bool isLastRow: {
+                                        let totalVirtual = isOddLayout ? root.recentScreenshots.length + 1 : root.recentScreenshots.length;
+                                        let cols = Math.max(1, ssGrid.columns);
+                                        return virtualIndex >= (Math.floor((totalVirtual - 1) / cols) * cols);
+                                    }
+                                    property bool isLeftCol: virtualIndex % Math.max(1, ssGrid.columns) === 0
+                                    property bool isRightCol: {
+                                        let cols = Math.max(1, ssGrid.columns);
+                                        let endVirtual = isSpan2 ? 1 : virtualIndex;
+                                        let totalVirtual = isOddLayout ? root.recentScreenshots.length + 1 : root.recentScreenshots.length;
+                                        return (endVirtual % cols) === (cols - 1) || virtualIndex === (totalVirtual - 1);
+                                    }
+
+                                    property real tlr: (isFirstRow && isLeftCol) ? outerRadius : innerRadius
+                                    property real trr: (isFirstRow && isRightCol) ? outerRadius : innerRadius
+                                    property real blr: (isLastRow && isLeftCol) ? outerRadius : innerRadius
+                                    property real brr: (isLastRow && isRightCol) ? outerRadius : innerRadius
 
                                     opacity: isDragging ? 0.45 : 1.0
                                     Behavior on opacity { NumberAnimation { duration: 150 } }
@@ -648,14 +678,99 @@ PluginComponent {
                                         onReleased: { ssDelegate.isDragging = false; dragLaunched = false; }
                                         onClicked: { if (!dragLaunched) root.openFile(modelData.path); }
                                     }
-                                    Rectangle {
-                                        id: thumbCont; anchors.fill: parent; radius: 12; color: Theme.surfaceContainer
-                                        layer.enabled: true
-                                        layer.effect: OpacityMask { maskSource: Rectangle { width: thumbCont.width; height: thumbCont.height; radius: 12 } }
-                                        Image { anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true; mipmap: true }
-                                        Rectangle { anchors.fill: parent; radius: 12; color: "black"; opacity: maSS.containsMouse ? 0.2 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
-                                        DankRipple { id: ssRip; anchors.fill: parent; cornerRadius: 12; rippleColor: Theme.primary }
+
+                                    // Mask for the Image
+                                    Canvas {
+                                        id: ssMask
+                                        anchors.fill: parent
+                                        visible: false
+                                        antialiasing: true
+                                        onPaint: {
+                                            var ctx = getContext("2d");
+                                            ctx.reset();
+                                            ctx.beginPath();
+                                            ctx.moveTo(ssDelegate.tlr, 0);
+                                            ctx.lineTo(width - ssDelegate.trr, 0);
+                                            ctx.arcTo(width, 0, width, ssDelegate.trr, ssDelegate.trr);
+                                            ctx.lineTo(width, height - ssDelegate.brr);
+                                            ctx.arcTo(width, height, width - ssDelegate.brr, height, ssDelegate.brr);
+                                            ctx.lineTo(ssDelegate.blr, height);
+                                            ctx.arcTo(0, height, 0, height - ssDelegate.blr, ssDelegate.blr);
+                                            ctx.lineTo(0, ssDelegate.tlr);
+                                            ctx.arcTo(0, 0, ssDelegate.tlr, 0, ssDelegate.tlr);
+                                            ctx.closePath();
+                                            ctx.fillStyle = "black";
+                                            ctx.fill();
+                                        }
+                                        function refresh() { requestPaint(); }
+                                        Connections {
+                                            target: ssDelegate
+                                            function onTlrChanged() { ssMask.refresh(); }
+                                            function onTrrChanged() { ssMask.refresh(); }
+                                            function onBlrChanged() { ssMask.refresh(); }
+                                            function onBrrChanged() { ssMask.refresh(); }
+                                        }
+                                        onWidthChanged: refresh()
+                                        onHeightChanged: refresh()
                                     }
+
+                                    Item {
+                                        id: thumbCont; anchors.fill: parent
+                                        layer.enabled: true
+                                        layer.effect: OpacityMask { maskSource: ssMask }
+                                        
+                                        Rectangle { anchors.fill: parent; color: Theme.surfaceContainer }
+                                        Image { anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true; mipmap: true }
+                                        Rectangle { anchors.fill: parent; color: Theme.primary; opacity: maSS.containsMouse ? 0.2 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
+                                    }
+                                    
+                                    // Border and Shadow
+                                    Canvas {
+                                        id: ssBorder
+                                        anchors.fill: parent
+                                        antialiasing: true
+                                        property color borderColor: maSS.containsMouse ? Theme.primary : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                                        onPaint: {
+                                            var ctx = getContext("2d");
+                                            ctx.reset();
+                                            ctx.beginPath();
+                                            ctx.moveTo(ssDelegate.tlr, 0);
+                                            ctx.lineTo(width - ssDelegate.trr, 0);
+                                            ctx.arcTo(width, 0, width, ssDelegate.trr, ssDelegate.trr);
+                                            ctx.lineTo(width, height - ssDelegate.brr);
+                                            ctx.arcTo(width, height, width - ssDelegate.brr, height, ssDelegate.brr);
+                                            ctx.lineTo(ssDelegate.blr, height);
+                                            ctx.arcTo(0, height, 0, height - ssDelegate.blr, ssDelegate.blr);
+                                            ctx.lineTo(0, ssDelegate.tlr);
+                                            ctx.arcTo(0, 0, ssDelegate.tlr, 0, ssDelegate.tlr);
+                                            ctx.closePath();
+                                            ctx.strokeStyle = borderColor;
+                                            ctx.lineWidth = 1.5;
+                                            ctx.stroke();
+                                        }
+                                        onBorderColorChanged: requestPaint()
+                                        function refresh() { requestPaint(); }
+                                        Connections {
+                                            target: ssDelegate
+                                            function onTlrChanged() { ssBorder.refresh(); }
+                                            function onTrrChanged() { ssBorder.refresh(); }
+                                            function onBlrChanged() { ssBorder.refresh(); }
+                                            function onBrrChanged() { ssBorder.refresh(); }
+                                        }
+                                        onWidthChanged: refresh()
+                                        onHeightChanged: refresh()
+                                        
+                                        layer.enabled: true
+                                        layer.effect: DropShadow {
+                                            transparentBorder: true
+                                            radius: 8; samples: 16
+                                            color: Theme.withAlpha(Theme.shadowColor || "#000000", maSS.containsMouse ? 0.3 : 0.15)
+                                            Behavior on color { ColorAnimation { duration: 250 } }
+                                        }
+                                    }
+
+                                    DankRipple { id: ssRip; anchors.fill: parent; cornerRadius: ssDelegate.tlr; rippleColor: Theme.primary }
+
                                     Item {
                                         width: 32; height: 32; anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: -6; anchors.rightMargin: -6
                                         scale: (ssDelegate.hovered || root.isPinned(modelData.path)) ? 1.0 : 0.0
@@ -663,8 +778,8 @@ PluginComponent {
                                         Rectangle { 
                                             id: ssPinBg
                                             anchors.centerIn: parent; width: 24; height: 24; radius: 6
-                                            color: root.isPinned(modelData.path) ? Theme.primary : (ssPinMa.containsMouse ? Theme.withAlpha(Theme.secondary, 0.15) : Theme.surfaceContainer)
-                                            border.width: 1; border.color: ssPinMa.containsMouse ? Theme.withAlpha(Theme.secondary, 0.3) : Theme.outline
+                                            color: root.isPinned(modelData.path) ? Theme.primary : (ssPinMa.containsMouse ? Theme.withAlpha(Theme.primary, 0.15) : Theme.surfaceContainer)
+                                            border.width: 1; border.color: ssPinMa.containsMouse ? Theme.withAlpha(Theme.primary, 0.3) : Theme.outline
                                             
                                             Behavior on color { ColorAnimation { duration: 200 } }
                                             
@@ -677,7 +792,7 @@ PluginComponent {
                                         }
                                         DankIcon { 
                                             name: "push_pin"; size: 14; 
-                                            color: root.isPinned(modelData.path) ? "white" : (ssPinMa.containsMouse ? Theme.secondary : Theme.surfaceText)
+                                            color: root.isPinned(modelData.path) ? "white" : (ssPinMa.containsMouse ? Theme.primary : Theme.surfaceText)
                                             anchors.centerIn: parent; rotation: root.isPinned(modelData.path) ? 0 : 45
                                             Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } } 
                                         }
@@ -777,12 +892,12 @@ PluginComponent {
                                         property real brrAnim: brr; Behavior on brrAnim { NumberAnimation { duration: 150 } }
 
                                         property color paintColor: hovered
-                                                ? Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
-                                                : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.08)
+                                                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
+                                                : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
                                         
                                         property color paintBorder: hovered
-                                                ? Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.3)
-                                                : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.1)
+                                                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
+                                                : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
 
                                         onTlrAnimChanged: requestPaint()
                                         onTrrAnimChanged: requestPaint()
@@ -817,7 +932,7 @@ PluginComponent {
                                             opacity: hovered ? 0.05 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } 
                                         }
                                     }
-                                    DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: dlBg.tlr; rippleColor: Theme.secondary }
+                                    DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: dlBg.tlr; rippleColor: Theme.primary }
                                     RowLayout {
                                         anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: Theme.spacingS
                                         Rectangle {
@@ -825,7 +940,7 @@ PluginComponent {
                                             Layout.alignment: Qt.AlignVCenter; layer.enabled: true
                                             layer.effect: OpacityMask { maskSource: Rectangle { width: 26; height: 26; radius: 13 } }
                                             Image { visible: root.isImage(modelData.path); anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true }
-                                            DankIcon { visible: !root.isImage(modelData.path); anchors.centerIn: parent; name: root.getIcon(modelData.path); size: 12; color: Theme.secondary }
+                                            DankIcon { visible: !root.isImage(modelData.path); anchors.centerIn: parent; name: root.getIcon(modelData.path); size: 12; color: Theme.primary }
                                         }
                                         Column {
                                             Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
@@ -838,8 +953,8 @@ PluginComponent {
                                                 id: dlPinBtnBg
                                                 anchors.centerIn: dlPushPinIcon
                                                 width: 28; height: 28; radius: 8
-                                                color: dlPinMa.containsMouse ? Theme.withAlpha(Theme.secondary, 0.15) : "transparent"
-                                                border.color: Theme.withAlpha(Theme.secondary, 0.3)
+                                                color: dlPinMa.containsMouse ? Theme.withAlpha(Theme.primary, 0.15) : "transparent"
+                                                border.color: Theme.withAlpha(Theme.primary, 0.3)
                                                 border.width: dlPinMa.containsMouse ? 1 : 0
                                                 opacity: dlPinMa.containsMouse ? 1 : 0
                                                 scale: dlPinMa.containsMouse ? 1 : 0.95
@@ -859,7 +974,7 @@ PluginComponent {
                                             }
                                             DankIcon { 
                                                 id: dlPushPinIcon
-                                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? Theme.secondary : Theme.surfaceVariantText
+                                                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; name: "push_pin"; size: 14; color: root.isPinned(modelData.path) ? Theme.primary : Theme.surfaceVariantText
                                                 rotation: root.isPinned(modelData.path) ? 0 : 45
                                                 scale: (hovered || root.isPinned(modelData.path)) ? (dlPinMa.pressed ? 0.8 : 1.2) : 0.0
                                                 Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }

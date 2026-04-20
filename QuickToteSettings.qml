@@ -251,7 +251,7 @@ PluginSettings {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignVCenter
                             spacing: Theme.spacingXXS
-                            StyledText { text: "Max Screenshots"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
+                            StyledText { text: "Max Screen Captures"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
                             StyledText { text: "Number of screen captures to show preview for."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
                         }
                         Rectangle {
