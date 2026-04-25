@@ -43,6 +43,7 @@ PluginSettings {
             function loadValue() {
                 dlPathField.loadValue();
                 ssPathField.loadValue();
+                scanSubToggle.loadValue();
             }
 
             Column {
@@ -80,6 +81,36 @@ PluginSettings {
                         Component.onCompleted: loadValue()
                         onEditingFinished: {
                             mainSettingsCol.saveValue(settingKey, text);
+                        }
+                    }
+
+                    RowLayout {
+                        id: scanSubLabelRow
+                        width: parent.width
+                        spacing: Theme.spacingM
+                        DankIcon { name: "account_tree"; size: 22; Layout.alignment: Qt.AlignVCenter; opacity: 0.8 }
+                        Column {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: Theme.spacingXXS
+                            StyledText { text: "Scan Subdirectories"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
+                            StyledText { text: "Search for files in all subdirectories of the downloads path."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                        }
+                        DankToggle {
+                            id: scanSubToggle
+                            Layout.alignment: Qt.AlignVCenter
+                            property string settingKey: "scanSubfolders"
+                            checked: false
+                            
+                            function loadValue() {
+                                checked = mainSettingsCol.loadValue(settingKey, false);
+                            }
+                            Component.onCompleted: loadValue()
+                            
+                            onClicked: {
+                                checked = !checked
+                                mainSettingsCol.saveValue(settingKey, checked);
+                            }
                         }
                     }
                 }
