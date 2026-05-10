@@ -13,16 +13,16 @@
         "dankbar-widget"
     ],
     "repo": "https://github.com/JDKamalakar/DMS-Quick_Tote",
-    "screenshot": "",
-    "dependencies": [
-        "dms"
-    ],
     "compositors": [
         "any"
     ],
     "distro": [
         "any"
     ],
+    "dependencies": [
+        "dms"
+    ],
+    "screenshot": "https://raw.githubusercontent.com/JDKamalakar/DMS-Quick_Tote/refs/heads/main/assets/POP-Up_UI.png",
     "permissions": [
         "process",
         "settings_read",
