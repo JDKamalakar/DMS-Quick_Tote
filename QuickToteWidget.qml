@@ -33,6 +33,7 @@ PluginComponent {
     property int maxDownloads: PluginService.loadPluginData("quickTote", "maxDownloads", 6)
     property int maxScreenshots: PluginService.loadPluginData("quickTote", "maxScreenshots", 6)
     property bool scanSubfolders: PluginService.loadPluginData("quickTote", "scanSubfolders", false)
+    property bool scanScreenshotSubfolders: PluginService.loadPluginData("quickTote", "scanScreenshotSubfolders", false)
     
     // --- State Management ---
     property var pinnedFiles: []
@@ -82,6 +83,7 @@ PluginComponent {
     PluginGlobalVar { varName: "maxDownloads"; onValueChanged: { root.maxDownloads = value; root.refresh() } }
     PluginGlobalVar { varName: "maxScreenshots"; onValueChanged: { root.maxScreenshots = value; root.refresh() } }
     PluginGlobalVar { varName: "scanSubfolders"; onValueChanged: { root.scanSubfolders = value; root.refresh() } }
+    PluginGlobalVar { varName: "scanScreenshotSubfolders"; onValueChanged: { root.scanScreenshotSubfolders = value; root.refresh() } }
 
     onPluginDataChanged: {
         if (!pluginData) return;
@@ -94,6 +96,7 @@ PluginComponent {
     onMaxDownloadsChanged: refresh()
     onMaxScreenshotsChanged: refresh()
     onScanSubfoldersChanged: refresh()
+    onScanScreenshotSubfoldersChanged: refresh()
 
     function refresh() {
         if (dlScanner) dlScanner.running = false;
@@ -216,7 +219,7 @@ PluginComponent {
     Process {
         id: ssScanner
         running: false
-        command: ["bash", "-c", `d="${root.screenshotsPath}"; d=\${d/#\\~/$HOME}; [ -d "$d" ] && find "$d" -maxdepth 1 -type f \\( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \\) -printf '%T@|%p\\n' | sort -rn | head -n ${root.maxScreenshots}`]
+        command: ["bash", "-c", `d="${root.screenshotsPath}"; d=\${d/#\\~/$HOME}; [ -d "$d" ] && find "$d" ${root.scanScreenshotSubfolders ? "" : "-maxdepth 1"} -type f \\( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \\) -printf '%T@|%p\\n' | sort -rn | head -n ${root.maxScreenshots}`]
         stdout: StdioCollector {
             onStreamFinished: {
                 let lines = text.trim().split('\n').filter(l => l !== "");
