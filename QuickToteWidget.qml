@@ -335,12 +335,6 @@ PluginComponent {
                     border.width: 1
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true; horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
-                    }
                     RowLayout {
                         anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
                         Rectangle {
@@ -378,14 +372,6 @@ PluginComponent {
                     border.width: 1
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true
-                        horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
-                    }
-
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
@@ -484,12 +470,12 @@ PluginComponent {
                                     property real brrAnim: brr; Behavior on brrAnim { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
 
                                     property color paintColor: hovered
-                                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                                            : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.06)
+                                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+                                            : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.04)
                                     
                                     property color paintBorder: hovered
-                                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
-                                            : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.1)
+                                            ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4)
+                                            : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
 
                                     onTlrAnimChanged: requestPaint()
                                     onTrrAnimChanged: requestPaint()
@@ -602,14 +588,6 @@ PluginComponent {
                     border.width: 1
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true
-                        horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
-                    }
-
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
@@ -748,7 +726,7 @@ PluginComponent {
                                         id: ssBorder
                                         anchors.fill: parent
                                         antialiasing: true
-                                        property color borderColor: maSS.containsMouse ? Theme.primary : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.2)
+                                        property color borderColor: maSS.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4) : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
                                         onPaint: {
                                             var ctx = getContext("2d");
                                             ctx.reset();
@@ -764,7 +742,7 @@ PluginComponent {
                                             ctx.arcTo(0, 0, ssDelegate.tlr, 0, ssDelegate.tlr);
                                             ctx.closePath();
                                             ctx.strokeStyle = borderColor;
-                                            ctx.lineWidth = 1.5;
+                                            ctx.lineWidth = 1;
                                             ctx.stroke();
                                         }
                                         onBorderColorChanged: requestPaint()
@@ -778,14 +756,6 @@ PluginComponent {
                                         }
                                         onWidthChanged: refresh()
                                         onHeightChanged: refresh()
-                                        
-                                        layer.enabled: true
-                                        layer.effect: DropShadow {
-                                            transparentBorder: true
-                                            radius: 8; samples: 16
-                                            color: Theme.withAlpha(Theme.shadowColor || "#000000", maSS.containsMouse ? 0.3 : 0.15)
-                                            Behavior on color { ColorAnimation { duration: 250 } }
-                                        }
                                     }
 
                                     DankRipple { id: ssRip; anchors.fill: parent; cornerRadius: ssDelegate.tlr; rippleColor: Theme.primary }
@@ -808,13 +778,6 @@ PluginComponent {
                                             Behavior on color { ColorAnimation { duration: 450 } }
                                             
                                             Behavior on color { ColorAnimation { duration: 200 } }
-                                            
-                                            layer.enabled: true
-                                            layer.effect: DropShadow {
-                                                transparentBorder: true; radius: 6; samples: 12
-                                                color: Theme.withAlpha(Theme.shadowColor || "#000000", ssPinMa.containsMouse ? 0.35 : 0)
-                                                Behavior on color { ColorAnimation { duration: 200 } }
-                                            }
                                         }
                                         Item {
                                             anchors.centerIn: parent; width: 14; height: 14
@@ -864,14 +827,6 @@ PluginComponent {
                     border.width: 1
                     border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                     
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        transparentBorder: true
-                        horizontalOffset: 0; verticalOffset: 3
-                        radius: 12.0; samples: 24
-                        color: Theme.withAlpha(Theme.shadowColor || "#000000", 0.35)
-                    }
-
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 250 } }
 
@@ -941,12 +896,12 @@ PluginComponent {
                                         property real brrAnim: brr; Behavior on brrAnim { NumberAnimation { duration: 150 } }
 
                                         property color paintColor: hovered
-                                                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-                                                : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.06)
+                                                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+                                                : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.04)
                                         
                                         property color paintBorder: hovered
-                                                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
-                                                : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.1)
+                                                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4)
+                                                : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
 
                                         onTlrAnimChanged: requestPaint()
                                         onTrrAnimChanged: requestPaint()

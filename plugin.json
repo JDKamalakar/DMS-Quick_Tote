@@ -3,7 +3,7 @@
     "name": "Quick Tote",
     "description": "Quick access to recent downloads, screenshots, and pinned files (CROS Tote style).",
     "category": "utilities",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "author": "JDKamalakar",
     "icon": "folder_shared",
     "type": "widget",
