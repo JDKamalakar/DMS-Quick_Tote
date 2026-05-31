@@ -6,7 +6,7 @@ import qs.Common
 import qs.Widgets
 import qs.Modules.Plugins
 import qs.Services
-import Qt5Compat.GraphicalEffects
+import QtQuick.Effects
 
 PluginComponent {
     id: root
@@ -514,11 +514,31 @@ PluginComponent {
                                 DankRipple { id: pRipG; anchors.fill: parent; cornerRadius: pinBg.tlr; rippleColor: Theme.primary }
                                 RowLayout {
                                     anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 4; spacing: Theme.spacingM
-                                    Rectangle {
-                                        id: pinThumb; width: 28; height: 28; radius: 14; color: Theme.surfaceContainer
-                                        Layout.alignment: Qt.AlignVCenter; layer.enabled: true
-                                        layer.effect: OpacityMask { maskSource: Rectangle { width: 28; height: 28; radius: 14 } }
-                                        Image { visible: root.isImage(filePath); anchors.fill: parent; source: "file://" + filePath; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                                    Item {
+                                        id: pinThumb; width: 28; height: 28
+                                        Layout.alignment: Qt.AlignVCenter
+                                        
+                                        Rectangle { anchors.fill: parent; color: Theme.surfaceContainer; radius: 14 }
+                                        
+                                        Image {
+                                            id: pinImgSrc
+                                            visible: false
+                                            anchors.fill: parent
+                                            source: root.isImage(filePath) ? "file://" + filePath : ""
+                                            fillMode: Image.PreserveAspectCrop
+                                            asynchronous: true
+                                        }
+                                        
+                                        Rectangle { id: pinMask; anchors.fill: parent; radius: 14; visible: false }
+                                        
+                                        MultiEffect {
+                                            anchors.fill: parent
+                                            source: pinImgSrc
+                                            maskEnabled: true
+                                            maskSource: pinMask
+                                            visible: root.isImage(filePath)
+                                        }
+                                        
                                         DankIcon { visible: !root.isImage(filePath); anchors.centerIn: parent; name: root.getIcon(filePath); size: 12; color: hovered ? Theme.primary : Theme.surfaceVariantText; Behavior on color { ColorAnimation { duration: 150 } } }
                                     }
                                     StyledText {
@@ -713,12 +733,22 @@ PluginComponent {
 
                                     Item {
                                         id: thumbCont; anchors.fill: parent
-                                        layer.enabled: true
-                                        layer.effect: OpacityMask { maskSource: ssMask }
                                         
-                                        Rectangle { anchors.fill: parent; color: Theme.surfaceContainer }
-                                        Image { anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true; mipmap: true }
-                                        Rectangle { anchors.fill: parent; color: Theme.primary; opacity: maSS.containsMouse ? 0.2 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
+                                        Item {
+                                            id: thumbSrc
+                                            anchors.fill: parent
+                                            visible: false
+                                            Rectangle { anchors.fill: parent; color: Theme.surfaceContainer }
+                                            Image { anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true; mipmap: true }
+                                            Rectangle { anchors.fill: parent; color: Theme.primary; opacity: maSS.containsMouse ? 0.2 : 0; Behavior on opacity { NumberAnimation { duration: 150 } } }
+                                        }
+                                        
+                                        MultiEffect {
+                                            anchors.fill: parent
+                                            source: thumbSrc
+                                            maskEnabled: true
+                                            maskSource: ssMask
+                                        }
                                     }
                                     
                                     // Border and Shadow
@@ -939,11 +969,31 @@ PluginComponent {
                                     DankRipple { id: dlRip; anchors.fill: parent; cornerRadius: dlBg.tlr; rippleColor: Theme.primary }
                                     RowLayout {
                                         anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 4; spacing: Theme.spacingM
-                                        Rectangle {
-                                            id: dlThumb; width: 26; height: 26; radius: 13; color: Theme.surfaceContainer
-                                            Layout.alignment: Qt.AlignVCenter; layer.enabled: true
-                                            layer.effect: OpacityMask { maskSource: Rectangle { width: 26; height: 26; radius: 13 } }
-                                            Image { visible: root.isImage(modelData.path); anchors.fill: parent; source: "file://" + modelData.path; fillMode: Image.PreserveAspectCrop; asynchronous: true }
+                                        Item {
+                                            id: dlThumb; width: 26; height: 26
+                                            Layout.alignment: Qt.AlignVCenter
+                                            
+                                            Rectangle { anchors.fill: parent; color: Theme.surfaceContainer; radius: 13 }
+                                            
+                                            Image {
+                                                id: dlImgSrc
+                                                visible: false
+                                                anchors.fill: parent
+                                                source: root.isImage(modelData.path) ? "file://" + modelData.path : ""
+                                                fillMode: Image.PreserveAspectCrop
+                                                asynchronous: true
+                                            }
+                                            
+                                            Rectangle { id: dlMask; anchors.fill: parent; radius: 13; visible: false }
+                                            
+                                            MultiEffect {
+                                                anchors.fill: parent
+                                                source: dlImgSrc
+                                                maskEnabled: true
+                                                maskSource: dlMask
+                                                visible: root.isImage(modelData.path)
+                                            }
+                                            
                                             DankIcon { visible: !root.isImage(modelData.path); anchors.centerIn: parent; name: root.getIcon(modelData.path); size: 12; color: hovered ? Theme.primary : Theme.surfaceVariantText; Behavior on color { ColorAnimation { duration: 150 } } }
                                         }
                                         Column {
