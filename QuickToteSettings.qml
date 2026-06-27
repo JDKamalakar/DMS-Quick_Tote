@@ -30,15 +30,14 @@ PluginSettings {
         }
         
         Component.onCompleted: loadValueInternal()
-        Rectangle {
+        StyledRect {
             id: sourceRect
             width: parent.width
-            height: sourcesGroup.implicitHeight + Theme.spacingM * 2
-            color: Theme.surfaceContainer
+            height: Math.max(0, sourcesGroup.implicitHeight + Theme.spacingM * 2)
+            color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
             radius: Theme.cornerRadius
-            border.color: Theme.outline
+            border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
             border.width: 1
-            opacity: 0.8
 
             function loadValue() {
                 dlPathField.loadValue();
@@ -57,16 +56,29 @@ PluginSettings {
                     width: parent.width
                     spacing: Theme.spacingS
 
-                    Row {
-                        width: parent.width
-                        spacing: Theme.spacingM
-                        DankIcon { name: "download"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
-                        Column {
-                            width: parent.width - 22 - Theme.spacingM
-                            spacing: Theme.spacingXXS
-                            StyledText { text: "Downloads Path"; font.weight: Font.Medium; color: Theme.surfaceText }
-                            StyledText { text: "Directory to monitor for recent files."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                    Component {
+                        id: settingHeaderComponent
+                        RowLayout {
+                            anchors.fill: parent
+                            spacing: Theme.spacingM
+                            DankIcon { name: settingIcon; size: 22; Layout.alignment: Qt.AlignVCenter; opacity: 0.8 }
+                            Column {
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: Theme.spacingXXS
+                                StyledText { text: settingTitle; font.weight: Font.Medium; color: Theme.surfaceText; width: parent.width }
+                                StyledText { text: settingDesc; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                            }
                         }
+                    }
+
+                    Loader {
+                        width: parent.width
+                        asynchronous: true
+                        sourceComponent: settingHeaderComponent
+                        property string settingIcon: "download"
+                        property string settingTitle: "Downloads Path"
+                        property string settingDesc: "Directory to monitor for recent files."
                     }
 
                     DankTextField {
@@ -85,18 +97,18 @@ PluginSettings {
                         }
                     }
 
-                    Item { width: 1; height: Theme.spacingXS }
+                    Item { height: Theme.spacingXS }
                     RowLayout {
                         id: scanSubLabelRow
                         width: parent.width
                         spacing: Theme.spacingM
-                        DankIcon { name: "account_tree"; size: 22; Layout.alignment: Qt.AlignVCenter; opacity: 0.8 }
-                        Column {
+                        Loader {
                             Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
-                            spacing: Theme.spacingXXS
-                            StyledText { text: "Scan Downloads Subdirectories"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
-                            StyledText { text: "Search for files in all subdirectories of the downloads path."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                            asynchronous: true
+                            sourceComponent: settingHeaderComponent
+                            property string settingIcon: "account_tree"
+                            property string settingTitle: "Scan Downloads Subdirectories"
+                            property string settingDesc: "Search for files in all subdirectories of the downloads path."
                         }
                         DankToggle {
                             id: scanSubToggle
@@ -121,16 +133,13 @@ PluginSettings {
                     width: parent.width
                     spacing: Theme.spacingS
 
-                    Row {
+                    Loader {
                         width: parent.width
-                        spacing: Theme.spacingM
-                        DankIcon { name: "screenshot_region"; size: 22; anchors.verticalCenter: parent.verticalCenter; opacity: 0.8 }
-                        Column {
-                            width: parent.width - 22 - Theme.spacingM
-                            spacing: Theme.spacingXXS
-                            StyledText { text: "Screenshots Path"; font.weight: Font.Medium; color: Theme.surfaceText }
-                            StyledText { text: "Directory where screen captures are saved."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
-                        }
+                        asynchronous: true
+                        sourceComponent: settingHeaderComponent
+                        property string settingIcon: "screenshot_region"
+                        property string settingTitle: "Screenshots Path"
+                        property string settingDesc: "Directory where screen captures are saved."
                     }
 
                     DankTextField {
@@ -149,18 +158,18 @@ PluginSettings {
                         }
                     }
 
-                    Item { width: 1; height: Theme.spacingXS }
+                    Item { height: Theme.spacingXS }
                     RowLayout {
                         id: scanScreenshotSubLabelRow
                         width: parent.width
                         spacing: Theme.spacingM
-                        DankIcon { name: "account_tree"; size: 22; Layout.alignment: Qt.AlignVCenter; opacity: 0.8 }
-                        Column {
+                        Loader {
                             Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
-                            spacing: Theme.spacingXXS
-                            StyledText { text: "Scan Screenshot Subdirectories"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
-                            StyledText { text: "Search for files in all subdirectories of the screenshots path."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                            asynchronous: true
+                            sourceComponent: settingHeaderComponent
+                            property string settingIcon: "account_tree"
+                            property string settingTitle: "Scan Screenshot Subdirectories"
+                            property string settingDesc: "Search for files in all subdirectories of the screenshots path."
                         }
                         DankToggle {
                             id: scanScreenshotSubToggle
@@ -186,15 +195,14 @@ PluginSettings {
 
 
         // --- Performance & Limits ---
-        Rectangle {
+        StyledRect {
             id: limitRect
             width: parent.width
-            height: limitsGroup.implicitHeight + Theme.spacingM * 2
-            color: Theme.surfaceContainer
+            height: Math.max(0, limitsGroup.implicitHeight + Theme.spacingM * 2)
+            color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
             radius: Theme.cornerRadius
-            border.color: Theme.outline
+            border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
             border.width: 1
-            opacity: 0.8
 
             function loadValue() {
                 dlLimitSlider.loadValue();
@@ -215,30 +223,30 @@ PluginSettings {
                         id: dlLabelRow
                         width: parent.width
                         spacing: Theme.spacingM
-                        DankIcon { name: "list"; size: 22; Layout.alignment: Qt.AlignVCenter; opacity: 0.8 }
-                        Column {
+                        Loader {
                             Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
-                            spacing: Theme.spacingXXS
-                            StyledText { text: "Max Downloads"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
-                            StyledText { text: "Number of recent downloads to display."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                            asynchronous: true
+                            sourceComponent: settingHeaderComponent
+                            property string settingIcon: "list"
+                            property string settingTitle: "Max Downloads"
+                            property string settingDesc: "Number of recent downloads to display."
                         }
                         Rectangle {
                             id: dlResetBtn
                             width: 32; height: 32
                             radius: Theme.cornerRadius
                             Layout.alignment: Qt.AlignVCenter
-                            color: dlResetMa.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainerHigh
-                            border.color: dlResetMa.containsMouse ? Theme.primary : Theme.outline
+                            color: dlResetMa.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.04)
+                            border.color: dlResetMa.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4) : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
                             border.width: 1
                             opacity: dlLimitSlider.value !== dlLimitSlider.defaultValue ? (dlResetMa.containsMouse ? 1.0 : 0.9) : 0.0
                             visible: opacity > 0
-                            scale: dlResetMa.containsMouse ? 1.1 : 1.0
+                            scale: dlResetMa.pressed ? 0.9 : (dlResetMa.containsMouse ? 1.05 : 1.0)
                             
                             Behavior on color { ColorAnimation { duration: 150 } }
                             Behavior on border.color { ColorAnimation { duration: 150 } }
-                            Behavior on opacity { NumberAnimation { duration: 250 } }
-                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
 
                             DankRipple { 
                                 id: dlRip
@@ -253,8 +261,13 @@ PluginSettings {
                                 size: 18
                                 anchors.centerIn: parent
                                 color: dlResetMa.containsMouse ? Theme.primary : Theme.surfaceVariantText
-                                rotation: dlResetMa.containsMouse ? 90 : 0
-                                Behavior on rotation { NumberAnimation { duration: 450; easing.type: Easing.OutBack } }
+                                SequentialAnimation on rotation {
+                                    running: dlResetMa.containsMouse; loops: Animation.Infinite
+                                    NumberAnimation { to: 8; duration: 75 }
+                                    NumberAnimation { to: -8; duration: 150 }
+                                    NumberAnimation { to: 0; duration: 75 }
+                                    onRunningChanged: { if (!running) dlResetIcon.rotation = 0; }
+                                }
                                 Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
@@ -277,7 +290,7 @@ PluginSettings {
                         target: dlLimitSlider
                         property: "value"
                         to: dlLimitSlider.defaultValue
-                        duration: 300
+                        duration: 150
                         easing.type: Easing.OutCubic
                     }
 
@@ -310,30 +323,30 @@ PluginSettings {
                         id: ssLabelRow
                         width: parent.width
                         spacing: Theme.spacingM
-                        DankIcon { name: "photo_library"; size: 22; Layout.alignment: Qt.AlignVCenter; opacity: 0.8 }
-                        Column {
+                        Loader {
                             Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignVCenter
-                            spacing: Theme.spacingXXS
-                            StyledText { text: "Max Screen Captures"; width: parent.width; font.weight: Font.Medium; color: Theme.surfaceText }
-                            StyledText { text: "Number of screen captures to show preview for."; font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText; width: parent.width; wrapMode: Text.WordWrap }
+                            asynchronous: true
+                            sourceComponent: settingHeaderComponent
+                            property string settingIcon: "photo_library"
+                            property string settingTitle: "Max Screen Captures"
+                            property string settingDesc: "Number of screen captures to show preview for."
                         }
                         Rectangle {
                             id: ssResetBtn
                             width: 32; height: 32
                             radius: Theme.cornerRadius
                             Layout.alignment: Qt.AlignVCenter
-                            color: ssResetMa.containsMouse ? Theme.surfaceContainerHighest : Theme.surfaceContainerHigh
-                            border.color: ssResetMa.containsMouse ? Theme.primary : Theme.outline
+                            color: ssResetMa.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.04)
+                            border.color: ssResetMa.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4) : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
                             border.width: 1
                             opacity: ssLimitSlider.value !== ssLimitSlider.defaultValue ? (ssResetMa.containsMouse ? 1.0 : 0.9) : 0.0
                             visible: opacity > 0
-                            scale: ssResetMa.containsMouse ? 1.1 : 1.0
+                            scale: ssResetMa.pressed ? 0.9 : (ssResetMa.containsMouse ? 1.05 : 1.0)
                             
                             Behavior on color { ColorAnimation { duration: 150 } }
                             Behavior on border.color { ColorAnimation { duration: 150 } }
-                            Behavior on opacity { NumberAnimation { duration: 250 } }
-                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
 
                             DankRipple { 
                                 id: ssRip
@@ -348,8 +361,13 @@ PluginSettings {
                                 size: 18
                                 anchors.centerIn: parent
                                 color: ssResetMa.containsMouse ? Theme.primary : Theme.surfaceVariantText
-                                rotation: ssResetMa.containsMouse ? 90 : 0
-                                Behavior on rotation { NumberAnimation { duration: 450; easing.type: Easing.OutBack } }
+                                SequentialAnimation on rotation {
+                                    running: ssResetMa.containsMouse; loops: Animation.Infinite
+                                    NumberAnimation { to: 8; duration: 75 }
+                                    NumberAnimation { to: -8; duration: 150 }
+                                    NumberAnimation { to: 0; duration: 75 }
+                                    onRunningChanged: { if (!running) ssResetIcon.rotation = 0; }
+                                }
                                 Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
@@ -372,7 +390,7 @@ PluginSettings {
                         target: ssLimitSlider
                         property: "value"
                         to: ssLimitSlider.defaultValue
-                        duration: 300
+                        duration: 150
                         easing.type: Easing.OutCubic
                     }
 
