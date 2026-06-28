@@ -303,6 +303,7 @@ PluginSettings {
                         maximum: 20
                         step: 1
                         unit: " files"
+                        wheelEnabled: false
                         
                         function loadValue() {
                             value = mainSettingsCol.loadValue(settingKey, defaultValue);
@@ -403,6 +404,7 @@ PluginSettings {
                         maximum: 10
                         step: 1
                         unit: " files"
+                        wheelEnabled: false
 
                         function loadValue() {
                             value = mainSettingsCol.loadValue(settingKey, defaultValue);

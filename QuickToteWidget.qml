@@ -547,7 +547,7 @@ PluginComponent {
                                             asynchronous: true
                                         }
                                         
-                                        Rectangle { id: pinMask; anchors.fill: parent; radius: height / 2; visible: false }
+                                        Rectangle { id: pinMask; anchors.fill: parent; radius: height / 2; visible: false; layer.enabled: true }
                                         
                                         MultiEffect {
                                             anchors.fill: parent
@@ -976,7 +976,7 @@ PluginComponent {
                                                 asynchronous: true
                                             }
                                             
-                                            Rectangle { id: dlMask; anchors.fill: parent; radius: height / 2; visible: false }
+                                            Rectangle { id: dlMask; anchors.fill: parent; radius: height / 2; visible: false; layer.enabled: true }
                                             
                                             MultiEffect {
                                                 anchors.fill: parent
