@@ -37,48 +37,37 @@ PluginComponent {
     property bool scanScreenshotSubfolders: PluginService.loadPluginData("quickTote", "scanScreenshotSubfolders", false)
     
     // --- State Management ---
-    property var pinnedFiles: []
+    property var pinnedFiles: {
+        let p = PluginService.loadPluginData("quickTote", "pinnedFiles", []);
+        if (Array.isArray(p)) return p;
+        try {
+            let parsed = JSON.parse(p);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch(e) {
+            return [];
+        }
+    }
     property var recentDownloads: []
     property var recentScreenshots: []
     
     property bool loading: (dlScanner && dlScanner.running) || (ssScanner && ssScanner.running)
     property string statusLabel: (loading ? "Updating..." : (recentDownloads.length + recentScreenshots.length + pinnedModel.count) + " items ready")
 
-    // --- Persistence: Manual JSON Store ---
-    // This bypasses the shell's volatile pluginData for pins, ensuring they are truly permanent.
-    
-    property string pinsFile: "~/.config/quickTote_pins.json"
-
     function savePins() {
-        let jsonStr = JSON.stringify(root.pinnedFiles);
-        // Ensure the directory exists before writing to prevent failure
-        pinSaver.command = ["bash", "-c", "f=\"" + root.pinsFile + "\"; f=${f/#\\~/$HOME}; mkdir -p \"$(dirname \"$f\")\"; echo '" + jsonStr + "' > \"$f\""];
-        pinSaver.running = true;
-    }
-
-    Process {
-        id: pinSaver
-        running: false
-    }
-
-    Process {
-        id: pinLoader
-        running: false
-        command: ["bash", "-c", "f=\"" + root.pinsFile + "\"; f=${f/#\\~/$HOME}; [ -f \"$f\" ] && cat \"$f\" || echo '[]'"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let data = JSON.parse(text.trim());
-                    if (Array.isArray(data)) {
-                        root.pinnedFiles = data;
-                        root.syncModel();
-                    }
-                } catch(e) { console.log("QuickTote: No pins found yet or parse error"); }
-            }
-        }
+        PluginService.savePluginData("quickTote", "pinnedFiles", root.pinnedFiles);
+        PluginService.setGlobalVar("quickTote", "pinnedFiles", root.pinnedFiles);
     }
 
     // --- Reactivity (New DMS Standard) ---
+    PluginGlobalVar { 
+        varName: "pinnedFiles"
+        onValueChanged: {
+            if (Array.isArray(value)) {
+                root.pinnedFiles = value;
+                root.syncModel();
+            }
+        }
+    }
     PluginGlobalVar { varName: "downloadsPath"; onValueChanged: { root._downloadsPath = value; root.refresh() } }
     PluginGlobalVar { varName: "screenshotsPath"; onValueChanged: { root._screenshotsPath = value; root.refresh() } }
     PluginGlobalVar { varName: "maxDownloads"; onValueChanged: { root.maxDownloads = value; root.refresh() } }
@@ -162,7 +151,7 @@ PluginComponent {
     }
 
     Component.onCompleted: {
-        pinLoader.running = true; // Hard load pins from our custom disk file
+        root.syncModel();
         root.refresh();
     }
     
@@ -207,7 +196,13 @@ PluginComponent {
     Process {
         id: dlScanner
         running: false
-        command: ["bash", "-c", `d="${root.downloadsPath}"; d=\${d/#\\~/$HOME}; [ -d "$d" ] && find "$d" ${root.scanSubfolders ? "" : "-maxdepth 1"} -type f -not -path '*/.*' -printf '%T@|%p\\n' | sort -rn | head -n ${root.maxDownloads}`]
+        command: [
+            "bash", "-c",
+            'd="$1"; d="${d/#\\~/$HOME}"; max="$2"; [ -d "$d" ] && find "$d" ' + (root.scanSubfolders ? "" : "-maxdepth 1") + ' -type f -not -path "*/.*" -printf "%T@|%p\\n" | sort -rn | head -n "$max"',
+            "_",
+            root.downloadsPath,
+            root.maxDownloads.toString()
+        ]
         stdout: StdioCollector {
             onStreamFinished: {
                 let lines = text.trim().split('\n').filter(l => l !== "");
@@ -220,7 +215,13 @@ PluginComponent {
     Process {
         id: ssScanner
         running: false
-        command: ["bash", "-c", `d="${root.screenshotsPath}"; d=\${d/#\\~/$HOME}; [ -d "$d" ] && find "$d" ${root.scanScreenshotSubfolders ? "" : "-maxdepth 1"} -type f \\( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \\) -printf '%T@|%p\\n' | sort -rn | head -n ${root.maxScreenshots}`]
+        command: [
+            "bash", "-c",
+            'd="$1"; d="${d/#\\~/$HOME}"; max="$2"; [ -d "$d" ] && find "$d" ' + (root.scanScreenshotSubfolders ? "" : "-maxdepth 1") + ' -type f \\( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \\) -printf "%T@|%p\\n" | sort -rn | head -n "$max"',
+            "_",
+            root.screenshotsPath,
+            root.maxScreenshots.toString()
+        ]
         stdout: StdioCollector {
             onStreamFinished: {
                 let lines = text.trim().split('\n').filter(l => l !== "");
@@ -240,14 +241,15 @@ PluginComponent {
     // Qt's Drag.Automatic cannot initiate Wayland DnD from a layer shell surface.
     // We delegate to a native CLI tool that acts as a proper wl_data_source.
     function startSystemDrag(path) {
-        fileDragger.running = false; // Reset the process object
+        fileDragger.running = false; // Terminate any previously running instance of our own drag process
         fileDragger.command = [
             "bash", "-c",
-            "pkill -x ripdrag; pkill -x xdragon; pkill -x dragon; " +
-            "f=" + JSON.stringify(path) + "; " +
-            "if command -v ripdrag >/dev/null 2>&1; then ripdrag --and-exit --icons-only --icon-size 64 --content-width 90 --content-height 64 \"$f\"; " +
-            "elif command -v xdragon >/dev/null 2>&1; then xdragon --and-exit --small \"$f\"; " +
-            "elif command -v dragon >/dev/null 2>&1; then dragon --and-exit --small \"$f\"; fi"
+            'f="$1"; ' +
+            'if command -v ripdrag >/dev/null 2>&1; then exec ripdrag --and-exit --icons-only --icon-size 64 --content-width 90 --content-height 64 "$f"; ' +
+            'elif command -v xdragon >/dev/null 2>&1; then exec xdragon --and-exit --small "$f"; ' +
+            'elif command -v dragon >/dev/null 2>&1; then exec dragon --and-exit --small "$f"; fi',
+            "_",
+            path
         ];
         fileDragger.running = true;
     }
@@ -311,7 +313,7 @@ PluginComponent {
 
     verticalBarPill: Component {
         DankIcon {
-            name: "folder"; size: 20; color: Theme.widgetIconColor || Theme.primary; anchors.horizontalCenter: parent.horizontalCenter
+            name: "folder"; size: Theme.iconSize - 4; color: Theme.widgetIconColor || Theme.primary; anchors.horizontalCenter: parent.horizontalCenter
         }
     }
 
@@ -328,7 +330,7 @@ PluginComponent {
                 id: sectionHeaderComponent
                 RowLayout {
                     spacing: Theme.spacingXS
-                    DankIcon { name: sectionIcon; size: 14; color: Theme.surfaceText }
+                    DankIcon { name: sectionIcon; size: Theme.iconSize - 10; color: Theme.surfaceText }
                     StyledText { text: sectionTitle; font.pixelSize: Theme.fontSizeSmall; font.weight: Font.Bold; color: Theme.surfaceText; Layout.fillWidth: true }
                 }
             }
@@ -349,7 +351,7 @@ PluginComponent {
                         anchors.fill: parent; anchors.margins: Theme.spacingM; spacing: Theme.spacingM
                         Rectangle {
                             width: 38; height: 38; radius: height / 2; color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
-                            DankIcon { name: "folder_shared"; size: 22; color: Theme.primary; anchors.centerIn: parent }
+                            DankIcon { name: "folder_shared"; size: Theme.iconSize - 2; color: Theme.primary; anchors.centerIn: parent }
                         }
                         Column {
                             Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: Theme.spacingXXS
@@ -382,7 +384,7 @@ PluginComponent {
                         }
                         DankIcon {
                             id: loadingSpinner
-                            name: "cached"; size: 18; color: Theme.primary; opacity: root.loading ? 0.6 : 0
+                            name: "cached"; size: Theme.iconSize - 6; color: Theme.primary; opacity: root.loading ? 0.6 : 0
                             visible: opacity > 0
                             Behavior on opacity { NumberAnimation { duration: 150 } }
                             RotationAnimation on rotation { 
@@ -488,8 +490,8 @@ PluginComponent {
                                     id: pinBg
                                     anchors.fill: parent
 
-                                    property real innerRadius: 6
-                                    property real outerRadius: 12
+                                    property real innerRadius: Math.max(2, Theme.cornerRadius / 2)
+                                    property real outerRadius: Theme.cornerRadius
                                     property bool isFirstRow: index < 2
                                     property bool isLastRow: index >= (pinnedModel.count - 1) - ((pinnedModel.count - 1) % 2)
                                     property bool isLeftCol: index % 2 === 0
@@ -514,19 +516,19 @@ PluginComponent {
                                             : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.15)
 
                                     ShapePath {
-                                        fillColor: pinBg.paintColor
-                                        strokeColor: pinBg.paintBorder
-                                        strokeWidth: 1
-                                        
-                                        startX: pinBg.tlrAnim; startY: 0
-                                        PathLine { x: pinBg.width - pinBg.trrAnim; y: 0 }
-                                        PathArc { x: pinBg.width; y: pinBg.trrAnim; radiusX: pinBg.trrAnim; radiusY: pinBg.trrAnim; direction: PathArc.Clockwise }
-                                        PathLine { x: pinBg.width; y: pinBg.height - pinBg.brrAnim }
-                                        PathArc { x: pinBg.width - pinBg.brrAnim; y: pinBg.height; radiusX: pinBg.brrAnim; radiusY: pinBg.brrAnim; direction: PathArc.Clockwise }
-                                        PathLine { x: pinBg.blrAnim; y: pinBg.height }
-                                        PathArc { x: 0; y: pinBg.height - pinBg.blrAnim; radiusX: pinBg.blrAnim; radiusY: pinBg.blrAnim; direction: PathArc.Clockwise }
-                                        PathLine { x: 0; y: pinBg.tlrAnim }
-                                        PathArc { x: pinBg.tlrAnim; y: 0; radiusX: pinBg.tlrAnim; radiusY: pinBg.tlrAnim; direction: PathArc.Clockwise }
+                                         fillColor: pinBg.paintColor
+                                         strokeColor: pinBg.paintBorder
+                                         strokeWidth: 1
+                                         
+                                         startX: pinBg.tlrAnim; startY: 0
+                                         PathLine { x: pinBg.width - pinBg.trrAnim; y: 0 }
+                                         PathArc { x: pinBg.width; y: pinBg.trrAnim; radiusX: pinBg.trrAnim; radiusY: pinBg.trrAnim; direction: PathArc.Clockwise }
+                                         PathLine { x: pinBg.width; y: pinBg.height - pinBg.brrAnim }
+                                         PathArc { x: pinBg.width - pinBg.brrAnim; y: pinBg.height; radiusX: pinBg.brrAnim; radiusY: pinBg.brrAnim; direction: PathArc.Clockwise }
+                                         PathLine { x: pinBg.blrAnim; y: pinBg.height }
+                                         PathArc { x: 0; y: pinBg.height - pinBg.blrAnim; radiusX: pinBg.blrAnim; radiusY: pinBg.blrAnim; direction: PathArc.Clockwise }
+                                         PathLine { x: 0; y: pinBg.tlrAnim }
+                                         PathArc { x: pinBg.tlrAnim; y: 0; radiusX: pinBg.tlrAnim; radiusY: pinBg.tlrAnim; direction: PathArc.Clockwise }
                                     }
                                 }
                                 DankRipple { id: pRipG; anchors.fill: parent; cornerRadius: pinBg.tlrAnim; rippleColor: Theme.primary }
@@ -557,7 +559,7 @@ PluginComponent {
                                             visible: root.isImage(filePath)
                                         }
                                         
-                                        DankIcon { visible: !root.isImage(filePath); anchors.centerIn: parent; name: root.getIcon(filePath); size: 12; color: hovered ? Theme.primary : Theme.surfaceVariantText; Behavior on color { ColorAnimation { duration: 150 } } }
+                                        DankIcon { visible: !root.isImage(filePath); anchors.centerIn: parent; name: root.getIcon(filePath); size: Theme.iconSize - 12; color: hovered ? Theme.primary : Theme.surfaceVariantText; Behavior on color { ColorAnimation { duration: 150 } } }
                                     }
                                     StyledText {
                                              Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
@@ -583,12 +585,12 @@ PluginComponent {
                                              }
                                              Item {
                                                  anchors.centerIn: parent
-                                                 width: 14; height: 14
+                                                 width: Theme.iconSize - 10; height: Theme.iconSize - 10
                                                  
                                                  DankIcon {
                                                      id: pushPinDot
                                                      anchors.centerIn: parent; name: "circle"
-                                                     size: 14; color: Theme.withAlpha(Theme.surfaceVariantText, 0.5)
+                                                     size: Theme.iconSize - 10; color: Theme.withAlpha(Theme.surfaceVariantText, 0.5)
                                                      scale: (root.isPinned(filePath) && !pinBtnMaGrid.containsMouse) ? 0.4 : 0.0
                                                      opacity: scale > 0 ? 1 : 0
                                                      Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
@@ -598,7 +600,7 @@ PluginComponent {
                                                  DankIcon {
                                                      id: pushPinIcon
                                                      anchors.centerIn: parent; name: "push_pin"
-                                                     size: 14; color: pinBtnMaGrid.containsMouse ? Theme.surfaceText : Theme.withAlpha(Theme.surfaceVariantText, 0.7)
+                                                     size: Theme.iconSize - 10; color: pinBtnMaGrid.containsMouse ? Theme.surfaceText : Theme.withAlpha(Theme.surfaceVariantText, 0.7)
                                                      scale: (pinBtnMaGrid.containsMouse || (hovered && !root.isPinned(filePath))) ? (pinBtnMaGrid.pressed ? 0.8 : 1.0) : 0.0
                                                      rotation: (root.isPinned(filePath) || pinBtnMaGrid.containsMouse) ? 0 : 45
                                                      opacity: scale > 0 ? 1 : 0
@@ -671,11 +673,9 @@ PluginComponent {
                                     property bool isDragging: false
                                     Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                                     Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                                    property bool hovered: maSS.containsMouse || ssPinMa.containsMouse
-
-                                    // Dynamic Corner Logic
-                                    property real innerRadius: 6
-                                    property real outerRadius: 12
+                                    property bool hovered: maSS.containsMouse || ssPinMa.containsMouse                                     // Dynamic Corner Logic
+                                    property real innerRadius: Math.max(2, Theme.cornerRadius / 2)
+                                    property real outerRadius: Theme.cornerRadius
                                     
                                     property int virtualIndex: isOddLayout ? (index === 0 ? 0 : index + 1) : index
                                     
@@ -810,13 +810,14 @@ PluginComponent {
                                             Behavior on color { ColorAnimation { duration: 150 } }
                                         }
                                         Item {
-                                            anchors.centerIn: parent; width: 14; height: 14
+                                            anchors.centerIn: parent
+                                            width: Theme.iconSize - 10; height: Theme.iconSize - 10
                                             
                                             // Dot (Idle Pinned State)
                                             DankIcon {
                                                 id: ssDotIcon
                                                 anchors.centerIn: parent; name: "circle"
-                                                size: 14; color: Theme.surfaceText
+                                                size: Theme.iconSize - 10; color: Theme.surfaceText
                                                 opacity: (root.isPinned(modelData.path) && !ssPinMa.containsMouse) ? 1.0 : 0.0
                                                 scale: opacity ? 0.6 : 0.0
                                                 Behavior on opacity { NumberAnimation { duration: 150 } }
@@ -826,7 +827,7 @@ PluginComponent {
                                             // Pin (Hover or Pin Action)
                                             DankIcon { 
                                                 id: ssPushIcon
-                                                name: "push_pin"; size: 14; anchors.centerIn: parent
+                                                name: "push_pin"; size: Theme.iconSize - 10; anchors.centerIn: parent
                                                 color: root.isPinned(modelData.path) ? Theme.surfaceText : Theme.withAlpha(Theme.surfaceText, 0.8)
                                                 opacity: (ssPinMa.containsMouse || !root.isPinned(modelData.path)) ? 1.0 : 0.0
                                                 scale: opacity ? (ssPinMa.pressed ? 0.8 : 1.0) : 0.0
@@ -917,8 +918,8 @@ PluginComponent {
                                         id: dlBg
                                         anchors.fill: parent
 
-                                        property real innerRadius: 6
-                                        property real outerRadius: 12
+                                        property real innerRadius: Math.max(2, Theme.cornerRadius / 2)
+                                        property real outerRadius: Theme.cornerRadius
                                         property bool isFirst: index === 0
                                         property bool isLast:  index === root.recentDownloads.length - 1
                                         
@@ -986,7 +987,7 @@ PluginComponent {
                                                 visible: root.isImage(modelData.path)
                                             }
                                             
-                                            DankIcon { visible: !root.isImage(modelData.path); anchors.centerIn: parent; name: root.getIcon(modelData.path); size: 12; color: hovered ? Theme.primary : Theme.surfaceVariantText; Behavior on color { ColorAnimation { duration: 150 } } }
+                                            DankIcon { visible: !root.isImage(modelData.path); anchors.centerIn: parent; name: root.getIcon(modelData.path); size: Theme.iconSize - 12; color: hovered ? Theme.primary : Theme.surfaceVariantText; Behavior on color { ColorAnimation { duration: 150 } } }
                                         }
                                         Column {
                                             Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter
@@ -1014,12 +1015,12 @@ PluginComponent {
                                              }
                                              Item {
                                                  anchors.centerIn: parent
-                                                 width: 14; height: 14
+                                                 width: Theme.iconSize - 10; height: Theme.iconSize - 10
 
                                                  DankIcon {
                                                      id: dlPushPinDot
                                                      anchors.centerIn: parent; name: "circle"
-                                                     size: 14; color: Theme.withAlpha(Theme.surfaceVariantText, 0.5)
+                                                     size: Theme.iconSize - 10; color: Theme.withAlpha(Theme.surfaceVariantText, 0.5)
                                                      scale: (root.isPinned(modelData.path) && !dlPinMa.containsMouse) ? 0.4 : 0.0
                                                      opacity: scale > 0 ? 1 : 0
                                                      Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
@@ -1029,16 +1030,15 @@ PluginComponent {
                                                  DankIcon {
                                                      id: dlPushPinIcon
                                                      anchors.centerIn: parent; name: "push_pin"
-                                                     size: 14; color: dlPinMa.containsMouse ? Theme.surfaceText : Theme.withAlpha(Theme.surfaceVariantText, 0.7)
+                                                     size: Theme.iconSize - 10; color: dlPinMa.containsMouse ? Theme.surfaceText : Theme.withAlpha(Theme.surfaceVariantText, 0.7)
                                                      rotation: (root.isPinned(modelData.path) || dlPinMa.containsMouse) ? 0 : 45
                                                      scale: (dlPinMa.containsMouse || (hovered && !root.isPinned(modelData.path))) ? (dlPinMa.pressed ? 0.8 : 1.0) : 0.0
                                                      opacity: scale > 0 ? 1 : 0
                                                      Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
                                                      Behavior on rotation { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-                                                     Behavior on opacity { NumberAnimation { duration: 150 } }
-                                                 }
                                              }
-                                             DankRipple { id: dlPinRip; anchors.fill: dlPinBtnBg; cornerRadius: Theme.cornerRadius; rippleColor: Theme.primary }
+                                        }
+                                        DankRipple { id: dlPinRip; anchors.fill: dlPinBtnBg; cornerRadius: Theme.cornerRadius; rippleColor: Theme.primary }
                                              MouseArea { 
                                                  id: dlPinMa; anchors.fill: parent; hoverEnabled: true; 
                                                  onPressed: (m) => dlPinRip.trigger(m.x, m.y)
