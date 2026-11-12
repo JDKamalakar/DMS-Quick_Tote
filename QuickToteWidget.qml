@@ -33,6 +33,7 @@ PluginComponent {
     
     property int maxDownloads: PluginService.loadPluginData("quickTote", "maxDownloads", 6)
     property int maxScreenshots: PluginService.loadPluginData("quickTote", "maxScreenshots", 6)
+    property int scanInterval: PluginService.loadPluginData("quickTote", "scanInterval", 60)
     property bool scanSubfolders: PluginService.loadPluginData("quickTote", "scanSubfolders", false)
     property bool scanScreenshotSubfolders: PluginService.loadPluginData("quickTote", "scanScreenshotSubfolders", false)
     
@@ -72,6 +73,7 @@ PluginComponent {
     PluginGlobalVar { varName: "screenshotsPath"; onValueChanged: { root._screenshotsPath = value; root.refresh() } }
     PluginGlobalVar { varName: "maxDownloads"; onValueChanged: { root.maxDownloads = value; root.refresh() } }
     PluginGlobalVar { varName: "maxScreenshots"; onValueChanged: { root.maxScreenshots = value; root.refresh() } }
+    PluginGlobalVar { varName: "scanInterval"; onValueChanged: { root.scanInterval = value; } }
     PluginGlobalVar { varName: "scanSubfolders"; onValueChanged: { root.scanSubfolders = value; root.refresh() } }
     PluginGlobalVar { varName: "scanScreenshotSubfolders"; onValueChanged: { root.scanScreenshotSubfolders = value; root.refresh() } }
 
@@ -96,7 +98,11 @@ PluginComponent {
     }
 
     Timer {
-        interval: 60000; running: true; repeat: true; triggeredOnStart: true
+        id: refreshTimer
+        interval: Math.max(5, root.scanInterval) * 1000
+        running: true
+        repeat: true
+        triggeredOnStart: true
         onTriggered: root.refresh()
     }
 
